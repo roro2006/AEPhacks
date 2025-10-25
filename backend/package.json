@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "flask": "^0.2.10",
+    "flask-cors": "^0.0.1",
+    "numpy": "^0.0.1",
+    "pandas": "^0.0.3",
+    "pydantic": "^0.0.1-security"
+  }
+}

@@ -4,6 +4,23 @@
 
 ### Step 1: Start the Backend
 
+#### For macOS/Linux:
+```bash
+# Open a terminal
+cd /Users/anirudhsrc/Desktop/Hackathon_2025/AEPhacks/backend
+
+# Create and activate virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start the Flask server
+python app.py
+```
+
+#### For Windows:
 ```bash
 # Open a terminal/command prompt
 cd C:\Users\rores\OneDrive\Desktop\Hack25\AEP\grid-monitor\backend
@@ -25,6 +42,19 @@ python app.py
 
 Open a **NEW** terminal/command prompt:
 
+#### For macOS/Linux:
+```bash
+# Navigate to frontend
+cd /Users/anirudhsrc/Desktop/Hackathon_2025/AEPhacks/frontend
+
+# Install dependencies (first time only)
+npm install
+
+# Start the development server
+npm run dev
+```
+
+#### For Windows:
 ```bash
 # Navigate to frontend
 cd C:\Users\rores\OneDrive\Desktop\Hack25\AEP\grid-monitor\frontend
@@ -139,26 +169,50 @@ curl -X POST http://localhost:5000/api/lines/ratings \
   -d "{\"ambient_temp\": 30, \"wind_speed\": 1.5, \"wind_angle\": 90, \"sun_time\": 14, \"date\": \"12 Jun\"}"
 ```
 
+## Using the Chatbot
+
+The Grid Monitor now includes an AI chatbot assistant! Look for the purple chat button in the bottom-right corner.
+
+### What you can ask:
+- **Specific line status**: "What is the status of line L0?"
+- **Grid overview**: "Give me a summary" or "How is the grid doing?"
+- **Critical issues**: "Are there any overloaded lines?"
+- **Weather impact**: "How is the weather affecting the grid?"
+- **Performance queries**: "Which line is most loaded?"
+- **Help**: "help" - to see all available commands
+
+The chatbot uses real-time grid data and current weather conditions to give you accurate, context-aware responses!
+
 ## Troubleshooting
 
 ### Backend won't start
 - **Error: `ModuleNotFoundError`**: Run `pip install -r requirements.txt`
-- **Error: Port 5000 in use**: Change port in `backend/app.py` line: `app.run(port=5001)`
+- **Error: Port 5000 in use**:
+  - macOS/Linux: Check with `lsof -i :5000` and kill process if needed
+  - Windows: Change port in `backend/app.py` line: `app.run(port=5001)`
 - **Error: Cannot find ieee738**: Make sure the `osu_hackathon` folder is in the correct location
+- **macOS: Permission denied**: Try `python3` instead of `python`
 
 ### Frontend won't start
 - **Error: `command not found: npm`**: Install Node.js from https://nodejs.org
 - **Error: Port 5173 in use**: Vite will auto-select another port
 - **Blank page**: Check browser console (F12) for errors, ensure backend is running
+- **macOS: EACCES error**: Try `sudo npm install -g npm@latest` or use nvm (Node Version Manager)
 
 ### Map not loading
 - **Check backend**: Make sure `http://localhost:5000/api/health` returns `{"status": "healthy"}`
 - **CORS errors**: Make sure flask-cors is installed
-- **GeoJSON errors**: Verify `osu_hackathon/hawaii40_osu/gis/oneline_lines.geojson` exists
+- **GeoJSON errors**: Verify the `osu_hackathon` folder exists and contains the data files
+
+### Chatbot not responding
+- **Backend not running**: Ensure Flask server is running on port 5000
+- **CORS errors**: Make sure flask-cors is installed (`pip install flask-cors`)
+- **Check browser console**: Press F12 and look for errors in the Console tab
 
 ### No data showing
 - **Error in console about data files**: Check paths in `data_loader.py`
-- **Ensure**: The `osu_hackathon` folder is at `C:\Users\rores\OneDrive\Desktop\Hack25\AEP\osu_hackathon`
+- **macOS**: Paths should use forward slashes: `/Users/username/...`
+- **Windows**: Paths should use backslashes: `C:\Users\username\...`
 
 ## Next Steps
 

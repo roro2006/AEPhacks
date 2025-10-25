@@ -4,6 +4,7 @@ import { Activity, Loader2 } from 'lucide-react'
 import { fetchLineRatings, type WeatherParams, type RatingResponse } from './services/api'
 import WeatherControls from './components/WeatherControls-simple'
 import AlertDashboard from './components/AlertDashboard-simple'
+import Chatbot from './components/Chatbot'
 
 function App() {
   const [weather, setWeather] = useState<WeatherParams>({
@@ -179,6 +180,9 @@ function App() {
           </aside>
         </div>
       </main>
+
+      {/* Chatbot Component */}
+      <Chatbot weather={weather} />
     </div>
   )
 }
