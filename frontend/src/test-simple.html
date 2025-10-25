@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Test</title>
+</head>
+<body>
+    <h1>Test Page</h1>
+    <div id="test">Loading...</div>
+
+    <script>
+        // Test if basic JS works
+        document.getElementById('test').innerHTML = 'JavaScript is working!';
+
+        // Test fetch to backend
+        fetch('http://localhost:5000/api/health')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('test').innerHTML += '<br>Backend: ' + JSON.stringify(data);
+            })
+            .catch(error => {
+                document.getElementById('test').innerHTML += '<br>Backend Error: ' + error;
+            });
+    </script>
+</body>
+</html>
