@@ -15,6 +15,7 @@ from ieee738 import ConductorParams
 
 from rating_calculator import RatingCalculator
 from data_loader import DataLoader
+from map_generator import GridMapGenerator
 from chatbot_service import GridChatbotService
 
 app = Flask(__name__)
@@ -23,6 +24,7 @@ CORS(app)
 # Initialize data loader and calculator
 data_loader = DataLoader()
 calculator = RatingCalculator(data_loader)
+map_generator = GridMapGenerator(data_loader)
 
 # Initialize AI chatbot service
 try:
@@ -300,6 +302,91 @@ def analyze_impact():
             "change": change,
             "timestamp": pd.Timestamp.now().isoformat()
         })
+
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+@app.route('/api/map/generate', methods=['POST'])
+def generate_map():
+    """
+    Generate interactive network map with real-time data
+
+    Expected JSON body:
+    {
+        "ambient_temp": 25,
+        "wind_speed": 2.0,
+        "wind_angle": 90,
+        "sun_time": 12,
+        "date": "12 Jun"
+    }
+    """
+    try:
+        weather = request.json
+
+        # Build weather parameters
+        weather_params = {
+            'Ta': weather.get('ambient_temp', 25),
+            'WindVelocity': weather.get('wind_speed', 2.0),
+            'WindAngleDeg': weather.get('wind_angle', 90),
+            'SunTime': weather.get('sun_time', 12),
+            'Date': weather.get('date', '12 Jun'),
+            'Emissivity': 0.8,
+            'Absorptivity': 0.8,
+            'Direction': 'EastWest',
+            'Atmosphere': 'Clear',
+            'Elevation': 1000,
+            'Latitude': 27
+        }
+
+        # Get line ratings
+        results = calculator.calculate_all_line_ratings(weather_params)
+
+        # Generate map HTML
+        map_html = map_generator.generate_interactive_map(weather_params, results)
+
+        return jsonify({
+            "map_html": map_html,
+            "summary": results['summary'],
+            "weather": weather_params
+        })
+
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+@app.route('/api/map/line/<line_id>', methods=['POST'])
+def get_line_map_details(line_id):
+    """
+    Get detailed information for a specific line (for map clicks)
+
+    Expected JSON body:
+    {
+        "ambient_temp": 25,
+        "wind_speed": 2.0
+    }
+    """
+    try:
+        weather = request.json
+
+        weather_params = {
+            'Ta': weather.get('ambient_temp', 25),
+            'WindVelocity': weather.get('wind_speed', 2.0),
+            'WindAngleDeg': 90,
+            'SunTime': 12,
+            'Date': '12 Jun',
+            'Emissivity': 0.8,
+            'Absorptivity': 0.8,
+            'Direction': 'EastWest',
+            'Atmosphere': 'Clear',
+            'Elevation': 1000,
+            'Latitude': 27
+        }
+
+        # Get line details for chatbot/side panel
+        details = map_generator.get_line_details_for_chat(line_id, weather_params)
+
+        return jsonify(details)
 
     except Exception as e:
         import traceback

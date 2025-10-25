@@ -137,3 +137,59 @@ export async function analyzeContingency(
 
   return response.json()
 }
+
+export interface MapResponse {
+  map_html: string
+  summary: Summary
+  weather: WeatherParams
+}
+
+export interface LineDetails {
+  found: boolean
+  name?: string
+  branch_name?: string
+  loading_pct?: number
+  stress_level?: string
+  rating_mva?: number
+  flow_mva?: number
+  margin_mva?: number
+  voltage_kv?: number
+  conductor?: string
+  connections?: string
+  message?: string
+}
+
+export async function fetchMapHTML(weather: WeatherParams): Promise<MapResponse> {
+  const response = await fetch(`${API_BASE}/map/generate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(weather),
+  })
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.statusText}`)
+  }
+
+  return response.json()
+}
+
+export async function fetchLineDetails(
+  lineId: string,
+  weather: WeatherParams
+): Promise<LineDetails> {
+  const response = await fetch(`${API_BASE}/map/line/${lineId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(weather),
+  })
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.statusText}`)
+  }
+
+  return response.json()
+}
