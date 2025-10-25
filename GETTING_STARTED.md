@@ -169,19 +169,32 @@ curl -X POST http://localhost:5000/api/lines/ratings \
   -d "{\"ambient_temp\": 30, \"wind_speed\": 1.5, \"wind_angle\": 90, \"sun_time\": 14, \"date\": \"12 Jun\"}"
 ```
 
-## Using the Chatbot
+## Using the AI Chatbot 🤖
 
-The Grid Monitor now includes an AI chatbot assistant! Look for the purple chat button in the bottom-right corner.
+The Grid Monitor now includes an **AI-powered chatbot** using Claude API! Look for the purple chat button in the bottom-right corner.
 
-### What you can ask:
-- **Specific line status**: "What is the status of line L0?"
-- **Grid overview**: "Give me a summary" or "How is the grid doing?"
-- **Critical issues**: "Are there any overloaded lines?"
-- **Weather impact**: "How is the weather affecting the grid?"
-- **Performance queries**: "Which line is most loaded?"
-- **Help**: "help" - to see all available commands
+### ⚠️ First Time Setup Required
+Before using the chatbot, you need to configure your Claude API key. See **[AI_CHATBOT_SETUP.md](AI_CHATBOT_SETUP.md)** for complete setup instructions.
 
-The chatbot uses real-time grid data and current weather conditions to give you accurate, context-aware responses!
+**Quick setup:**
+1. Get API key from https://console.anthropic.com/
+2. Add to `backend/.env`: `ANTHROPIC_API_KEY=your-key-here`
+3. Restart backend server
+4. Start chatting!
+
+### What makes this chatbot special:
+- **Data Explanation**: Understands and explains all grid metrics in natural language
+- **Impact Analysis**: Predicts what happens when you change weather variables
+- **Real-time Context**: Always aware of current grid state and conditions
+- **Domain Expert**: Trained on IEEE 738 standards and power system knowledge
+
+### Example questions:
+- **Data Explanation**: "Explain what loading percentage means" or "Why is line L0 critical?"
+- **Impact Analysis**: "What if temperature increases by 10°C?" or "How would higher wind speed help?"
+- **Grid Status**: "What's the current grid status?" or "Are there any overloaded lines?"
+- **Technical Help**: "What is dynamic rating?" or "Explain margin to overload"
+
+The chatbot uses real-time grid data, current weather conditions, and advanced AI to give you intelligent, context-aware responses!
 
 ## Troubleshooting
 

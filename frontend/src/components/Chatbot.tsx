@@ -7,24 +7,37 @@ interface Message {
   text: string
   sender: 'user' | 'bot'
   timestamp: Date
+  queryType?: string
+  aiPowered?: boolean
+  tokens?: number
 }
 
 interface ChatbotProps {
   weather: WeatherParams
 }
 
+const SUGGESTED_QUESTIONS = [
+  "What's the current grid status?",
+  "Are there any overloaded lines?",
+  "What if temperature increases by 10°C?",
+  "Explain the loading percentage metric",
+  "Which lines are most sensitive to weather?"
+]
+
 export default function Chatbot({ weather }: ChatbotProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Hello! I'm your Grid Monitor Assistant. I can help you with information about transmission lines, grid status, and weather impact. Type 'help' to see what I can do!",
+      text: "Hello! I'm your AI-powered Grid Monitor Assistant. I can explain grid data, predict impacts of variable changes, and help you make informed decisions. Try asking me something or click a suggestion below!",
       sender: 'bot',
-      timestamp: new Date()
+      timestamp: new Date(),
+      aiPowered: true
     }
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showSuggestions, setShowSuggestions] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -35,12 +48,13 @@ export default function Chatbot({ weather }: ChatbotProps) {
     scrollToBottom()
   }, [messages])
 
-  const sendMessage = async () => {
-    if (!input.trim() || loading) return
+  const sendMessage = async (messageText?: string) => {
+    const textToSend = messageText || input
+    if (!textToSend.trim() || loading) return
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      text: input,
+      text: textToSend,
       sender: 'user',
       timestamp: new Date()
     }
@@ -48,6 +62,7 @@ export default function Chatbot({ weather }: ChatbotProps) {
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setLoading(true)
+    setShowSuggestions(false)
 
     try {
       const response = await fetch('http://localhost:5000/api/chatbot', {
@@ -56,7 +71,7 @@ export default function Chatbot({ weather }: ChatbotProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: input,
+          message: textToSend,
           weather: {
             ambient_temp: weather.ambient_temp,
             wind_speed: weather.wind_speed,
@@ -77,14 +92,17 @@ export default function Chatbot({ weather }: ChatbotProps) {
         id: (Date.now() + 1).toString(),
         text: data.response,
         sender: 'bot',
-        timestamp: new Date()
+        timestamp: new Date(),
+        queryType: data.query_type,
+        aiPowered: data.ai_powered,
+        tokens: data.tokens
       }
 
       setMessages(prev => [...prev, botMessage])
     } catch (error) {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: 'Sorry, I encountered an error. Please make sure the backend server is running.',
+        text: 'Sorry, I encountered an error. Please make sure the backend server is running and the API key is configured.',
         sender: 'bot',
         timestamp: new Date()
       }
@@ -92,6 +110,10 @@ export default function Chatbot({ weather }: ChatbotProps) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSuggestionClick = (suggestion: string) => {
+    sendMessage(suggestion)
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -261,10 +283,50 @@ export default function Chatbot({ weather }: ChatbotProps) {
                   }}
                 >
                   <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-                  <span style={{ fontSize: '0.9rem', color: '#6b7280' }}>Thinking...</span>
+                  <span style={{ fontSize: '0.9rem', color: '#6b7280' }}>AI is thinking...</span>
                 </div>
               </div>
             )}
+
+            {/* Suggested Questions */}
+            {showSuggestions && messages.length === 1 && (
+              <div style={{ marginTop: '1rem' }}>
+                <p style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.5rem', fontWeight: 600 }}>
+                  SUGGESTED QUESTIONS:
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {SUGGESTED_QUESTIONS.map((suggestion, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      style={{
+                        padding: '0.6rem 0.75rem',
+                        background: 'white',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '0.8rem',
+                        color: '#374151',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.2s',
+                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.background = '#f3f4f6'
+                        e.currentTarget.style.borderColor = '#667eea'
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.background = 'white'
+                        e.currentTarget.style.borderColor = '#e5e7eb'
+                      }}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
 

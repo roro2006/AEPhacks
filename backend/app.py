@@ -15,6 +15,7 @@ from ieee738 import ConductorParams
 
 from rating_calculator import RatingCalculator
 from data_loader import DataLoader
+from chatbot_service import GridChatbotService
 
 app = Flask(__name__)
 CORS(app)
@@ -22,6 +23,17 @@ CORS(app)
 # Initialize data loader and calculator
 data_loader = DataLoader()
 calculator = RatingCalculator(data_loader)
+
+# Initialize AI chatbot service
+try:
+    chatbot_service = GridChatbotService()
+    CHATBOT_ENABLED = True
+except ValueError as e:
+    print(f"Warning: AI chatbot disabled - {e}")
+    CHATBOT_ENABLED = False
+except Exception as e:
+    print(f"Warning: AI chatbot initialization failed - {e}")
+    CHATBOT_ENABLED = False
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
@@ -165,7 +177,7 @@ def get_line_details(line_id):
 @app.route('/api/chatbot', methods=['POST'])
 def chatbot():
     """
-    Chatbot endpoint to answer questions about the grid
+    AI-powered chatbot endpoint with data explanation and impact analysis
 
     Expected JSON body:
     {
@@ -181,7 +193,7 @@ def chatbot():
     """
     try:
         data = request.json
-        user_message = data.get('message', '').lower()
+        user_message = data.get('message', '')
         weather = data.get('weather', {})
 
         # Set weather parameters with defaults
@@ -201,94 +213,91 @@ def chatbot():
 
         # Calculate current ratings
         results = calculator.calculate_all_line_ratings(weather_params)
-        lines = results['lines']
-        summary = results['summary']
 
-        # Process user query
-        response = ""
+        # Use AI chatbot if enabled, otherwise fall back to rule-based
+        if CHATBOT_ENABLED:
+            ai_response = chatbot_service.get_response(
+                user_message=user_message,
+                grid_data=results,
+                weather=weather_params
+            )
 
-        # Check for specific line queries
-        if 'line' in user_message or 'l0' in user_message or 'l1' in user_message or 'l2' in user_message:
-            # Extract line name
-            line_name = None
-            for line in lines:
-                if line['name'].lower() in user_message:
-                    line_name = line['name']
-                    break
-
-            if line_name:
-                line_data = next((l for l in lines if l['name'] == line_name), None)
-                if line_data:
-                    response = f"Line {line_name} ({line_data['branch_name']}) is currently at {line_data['loading_pct']:.1f}% loading with a rating of {line_data['rating_mva']:.1f} MVA and flow of {line_data['flow_mva']:.1f} MVA. Status: {line_data['stress_level'].upper()}."
-            else:
-                response = "I can provide information about specific lines. Please specify a line name (e.g., 'What is the status of line L0?')."
-
-        # Check for overloaded/critical lines
-        elif 'overload' in user_message or 'critical' in user_message or 'problem' in user_message or 'issue' in user_message:
-            critical_lines = [l for l in lines if l['stress_level'] == 'critical']
-            high_stress = [l for l in lines if l['stress_level'] == 'high']
-
-            if critical_lines:
-                response = f"There are {len(critical_lines)} critical line(s): "
-                response += ", ".join([f"{l['name']} ({l['loading_pct']:.1f}%)" for l in critical_lines])
-            elif high_stress:
-                response = f"There are {len(high_stress)} line(s) with high stress: "
-                response += ", ".join([f"{l['name']} ({l['loading_pct']:.1f}%)" for l in high_stress])
-            else:
-                response = "All lines are operating within normal parameters. No critical issues detected."
-
-        # Check for summary/status queries
-        elif 'summary' in user_message or 'status' in user_message or 'overview' in user_message or 'how' in user_message:
-            response = f"Grid Status Summary: {summary['total_lines']} lines monitored. "
-            response += f"Critical: {summary['critical_count']}, High Stress: {summary['high_stress_count']}, "
-            response += f"Caution: {summary['caution_count']}, Normal: {summary['normal_count']}. "
-            if summary['max_loading_line']:
-                response += f"Highest loaded line: {summary['max_loading_line']} at {summary['max_loading_pct']:.1f}%."
-
-        # Check for weather impact queries
-        elif 'weather' in user_message or 'temperature' in user_message or 'wind' in user_message:
-            response = f"Current conditions: Temperature {weather_params['Ta']}°C ({weather_params['Ta'] * 9/5 + 32:.1f}°F), "
-            response += f"Wind speed {weather_params['WindVelocity']} ft/s ({weather_params['WindVelocity'] * 0.681818:.1f} mph), "
-            response += f"Time: {weather_params['SunTime']}:00. "
-
-            # Check if conditions are affecting ratings
-            if summary['critical_count'] > 0:
-                response += "These conditions are causing some lines to operate at critical levels."
-            else:
-                response += "All lines are operating within acceptable limits under these conditions."
-
-        # Check for highest/worst performing line
-        elif 'highest' in user_message or 'worst' in user_message or 'most loaded' in user_message:
-            if summary['max_loading_line']:
-                line_data = next((l for l in lines if l['name'] == summary['max_loading_line']), None)
-                if line_data:
-                    response = f"The highest loaded line is {summary['max_loading_line']} ({line_data['branch_name']}) at {summary['max_loading_pct']:.1f}% loading. "
-                    response += f"Rating: {line_data['rating_mva']:.1f} MVA, Flow: {line_data['flow_mva']:.1f} MVA."
-
-        # Check for best performing line
-        elif 'lowest' in user_message or 'best' in user_message or 'least loaded' in user_message:
-            min_line = min(lines, key=lambda x: x['loading_pct'])
-            response = f"The least loaded line is {min_line['name']} ({min_line['branch_name']}) at {min_line['loading_pct']:.1f}% loading. "
-            response += f"Rating: {min_line['rating_mva']:.1f} MVA, Flow: {min_line['flow_mva']:.1f} MVA."
-
-        # Check for help queries
-        elif 'help' in user_message or 'what can you' in user_message or 'commands' in user_message:
-            response = "I can help you with:\n"
-            response += "• Line status (e.g., 'What is the status of line L0?')\n"
-            response += "• Grid overview (e.g., 'Give me a summary')\n"
-            response += "• Critical issues (e.g., 'Are there any overloaded lines?')\n"
-            response += "• Weather impact (e.g., 'How is the weather affecting the grid?')\n"
-            response += "• Performance analysis (e.g., 'Which line is most loaded?')"
-
-        # Default response
+            return jsonify({
+                "response": ai_response['response'],
+                "query_type": ai_response.get('query_type', 'general'),
+                "ai_powered": True,
+                "context_used": ai_response.get('context_used', {}),
+                "model": ai_response.get('model_used', 'N/A'),
+                "tokens": ai_response.get('tokens_used', 0),
+                "summary": results['summary'],
+                "timestamp": pd.Timestamp.now().isoformat()
+            })
         else:
-            response = f"I'm monitoring {summary['total_lines']} transmission lines. "
-            response += "You can ask me about specific lines, grid status, critical issues, or weather impact. "
-            response += "Type 'help' for more options."
+            # Fallback to simple rule-based responses
+            return jsonify({
+                "response": "AI chatbot is not configured. Please set ANTHROPIC_API_KEY in backend/.env file. Using basic responses for now.",
+                "ai_powered": False,
+                "summary": results['summary'],
+                "timestamp": pd.Timestamp.now().isoformat()
+            })
+
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+@app.route('/api/chatbot/analyze-impact', methods=['POST'])
+def analyze_impact():
+    """
+    Specialized endpoint for variable impact analysis
+
+    Expected JSON body:
+    {
+        "variable": "temperature",
+        "change": {"from": 25, "to": 35},
+        "weather": {...},
+    }
+    """
+    try:
+        if not CHATBOT_ENABLED:
+            return jsonify({
+                "error": "AI chatbot not configured. Please set ANTHROPIC_API_KEY."
+            }), 503
+
+        data = request.json
+        variable = data.get('variable')
+        change = data.get('change')
+        weather = data.get('weather', {})
+
+        # Set weather parameters
+        weather_params = {
+            'Ta': weather.get('ambient_temp', 25),
+            'WindVelocity': weather.get('wind_speed', 2.0),
+            'WindAngleDeg': weather.get('wind_angle', 90),
+            'SunTime': weather.get('sun_time', 12),
+            'Date': weather.get('date', '12 Jun'),
+            'Emissivity': 0.8,
+            'Absorptivity': 0.8,
+            'Direction': 'EastWest',
+            'Atmosphere': 'Clear',
+            'Elevation': 1000,
+            'Latitude': 27
+        }
+
+        # Get current grid data
+        results = calculator.calculate_all_line_ratings(weather_params)
+
+        # Analyze impact
+        analysis = chatbot_service.analyze_variable_impact(
+            variable=variable,
+            change=change,
+            current_weather=weather_params,
+            grid_data=results
+        )
 
         return jsonify({
-            "response": response,
-            "summary": summary,
+            "analysis": analysis['impact_analysis'],
+            "variable": variable,
+            "change": change,
             "timestamp": pd.Timestamp.now().isoformat()
         })
 
