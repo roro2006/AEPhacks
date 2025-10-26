@@ -47,7 +47,10 @@ class RatingCalculator:
             # Try IEEE engine
             try:
                 if self._ieee_engine_cls is not None:
-                    engine = self._ieee_engine_cls(loader=self.data_loader)
+                    # Merge defaults and per-request weather to ensure all keys present
+                    from config import AppConfig
+                    merged_weather = {**AppConfig.get_default_weather_params(), **(weather_params or {})}
+                    engine = self._ieee_engine_cls(loader=self.data_loader, ambient_defaults=merged_weather)
                     ieee_result = engine.compute_line_rating(line_data)
                     if ieee_result and ieee_result.get('rating_amps') is not None:
                         rating_amps = float(ieee_result['rating_amps'])
