@@ -12,6 +12,7 @@ import AlertDashboard from "./components/AlertDashboard-simple";
 import Chatbot from "./components/Chatbot";
 import NetworkMap from "./components/NetworkMap";
 import OutageAnalysis from "./components/OutageAnalysis";
+import WeatherAnalysis from "./components/WeatherAnalysis";
 
 type ViewTab = "map" | "table" | "analysis" | "chat";
 type FilterType = "all" | "critical" | "high" | "caution" | "normal" | "az" | "za";
@@ -20,12 +21,19 @@ function App() {
   const [activeTab, setActiveTab] = useState<ViewTab>("map");
   const [filter, setFilter] = useState<FilterType>("all");
   const [selectedLine, setSelectedLine] = useState<string | null>(null);
+  const [analysisSubTab, setAnalysisSubTab] = useState<'weather' | 'outage'>('weather');
   const [weather, setWeather] = useState<WeatherParams>({
     ambient_temp: 25,
     wind_speed: 2.0,
     wind_angle: 90,
     sun_time: 12,
     date: "12 Jun",
+    elevation: 1000,
+    latitude: 27,
+    emissivity: 0.8,
+    absorptivity: 0.8,
+    direction: 'EastWest',
+    atmosphere: 'Clear'
   });
 
   const [ratings, setRatings] = useState<RatingResponse | null>(null);
@@ -57,7 +65,9 @@ function App() {
   };
 
   const handleWeatherChange = (newWeather: Partial<WeatherParams>) => {
+    console.log('[App] Weather change requested:', newWeather)
     const updated = { ...weather, ...newWeather };
+    console.log('[App] Updated weather params:', updated)
     setWeather(updated);
     loadRatings(updated);
   };
@@ -296,7 +306,62 @@ function App() {
 
         {activeTab === "analysis" && (
           <div className="data-table-view" style={{ padding: 0 }}>
-            <OutageAnalysis onOutageComplete={setOutageResult} />
+            {/* Analysis Sub-tabs */}
+            <div style={{
+              display: 'flex',
+              gap: '0.5rem',
+              padding: '1rem 1rem 0 1rem',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+              marginBottom: '1rem'
+            }}>
+              <button
+                onClick={() => setAnalysisSubTab('weather')}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: analysisSubTab === 'weather' ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                  border: analysisSubTab === 'weather' ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '6px',
+                  color: analysisSubTab === 'weather' ? '#60a5fa' : '#9ca3af',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Weather Analysis
+              </button>
+              <button
+                onClick={() => setAnalysisSubTab('outage')}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: analysisSubTab === 'outage' ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                  border: analysisSubTab === 'outage' ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '6px',
+                  color: analysisSubTab === 'outage' ? '#60a5fa' : '#9ca3af',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Outage Simulation
+              </button>
+            </div>
+
+            {/* Sub-tab Content */}
+            <div style={{ padding: '0 1rem 1rem 1rem', height: 'calc(100% - 60px)', overflowY: 'auto' }}>
+              {analysisSubTab === 'weather' && (
+                <WeatherAnalysis
+                  weather={weather}
+                  ratings={ratings}
+                  onWeatherChange={handleWeatherChange}
+                  loading={loading}
+                />
+              )}
+              {analysisSubTab === 'outage' && (
+                <OutageAnalysis onOutageComplete={setOutageResult} />
+              )}
+            </div>
           </div>
         )}
 

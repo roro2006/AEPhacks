@@ -1,11 +1,17 @@
 const API_BASE = 'http://localhost:5000/api'
 
 export interface WeatherParams {
-  ambient_temp: number
-  wind_speed: number
-  wind_angle: number
-  sun_time: number
-  date: string
+  ambient_temp: number      // Ta: Ambient temperature (°C) - Range: -20 to 50
+  wind_speed: number         // WindVelocity: Wind speed (ft/sec) - Range: 0 to 20
+  wind_angle: number         // WindAngleDeg: Wind angle (degrees) - Range: 0 to 90
+  sun_time: number           // SunTime: Hour of day - Range: 0 to 24
+  date: string               // Date: Date for solar calculations - Format: 'DD MMM'
+  elevation?: number         // Elevation (ft) - Range: 0 to 5000
+  latitude?: number          // Latitude (degrees) - Range: 0 to 90
+  emissivity?: number        // Surface emissivity - Range: 0.2 to 1.0
+  absorptivity?: number      // Solar absorptivity - Range: 0.2 to 1.0
+  direction?: 'EastWest' | 'NorthSouth'  // Line orientation
+  atmosphere?: 'Clear' | 'Industrial'     // Atmospheric condition
 }
 
 export interface LineRating {
