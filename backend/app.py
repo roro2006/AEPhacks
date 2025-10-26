@@ -50,7 +50,8 @@ import json
 import logging
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+# Default to DEBUG to assist interactive troubleshooting during development
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 from rating_calculator import RatingCalculator
@@ -575,11 +576,30 @@ def generate_outage_map():
             }), 500
 
         data = request.json
-        outage_result = data.get('outage_result')
+        # Log incoming request for debugging
+        try:
+            logger.debug(f"Incoming outage map request keys: {list(data.keys()) if isinstance(data, dict) else 'non-dict'}")
+        except Exception:
+            logger.debug("Incoming outage map request - could not list keys")
 
-        if not outage_result:
-            logger.warning("No outage result provided in request")
-            return jsonify({"error": "No outage result provided"}), 400
+        outage_result = None
+        if isinstance(data, dict):
+            outage_result = data.get('outage_result')
+        else:
+            # If request.json returned a string or other type, try to coerce
+            outage_result = data
+
+        # If outage_result is a JSON string (double-serialized), try to parse it
+        if isinstance(outage_result, str):
+            try:
+                outage_result = json.loads(outage_result)
+                logger.debug("Parsed outage_result string into dict")
+            except Exception:
+                logger.warning("outage_result appears to be a string but could not parse as JSON")
+
+        if not outage_result or not isinstance(outage_result, dict):
+            logger.warning(f"No valid outage result provided in request - type={type(outage_result)}")
+            return jsonify({"error": "No outage result provided or invalid format", "type": str(type(outage_result))}), 400
 
         try:
             # Generate outage map visualization
