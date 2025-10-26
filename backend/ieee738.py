@@ -102,19 +102,7 @@ class Conductor:
 
         qc = max(qc1*Kangle, qc2*Kangle)
 
-        logger.debug("Forced Convection Heat Loss")
-        logger.debug("----------------------------")
-        logger.debug("D = %s" % D)
-        logger.debug("Vw = %s" % Vwind)
-        logger.debug("WindAngleDeg = %s" % self.WindAngleDeg)
-        logger.debug("Kangle = %s" % Kangle)
-        logger.debug("uf = %s" % uf)
-        logger.debug("pf = %s" % pf)
-        logger.debug("kf = %s" % kf)
-        logger.debug("qc1 = %s" % qc1)
-        logger.debug("qc1*Kangle = %s" % (qc1*Kangle))
-        logger.debug("qc2 = %s" % qc2)
-        logger.debug("qc2*Kangle = %s" % (qc2*Kangle)) 
+    
         return qc
 
     def get_uf(self):
@@ -142,13 +130,6 @@ class Conductor:
         He = self.Elevation
         pf = (0.080695 - 2.901e-6*He + 3.7e-11*He**2) / (1 + 0.00367*Tfilm)
 
-        logger.debug("pf.  Density of air")
-        logger.debug("-----------------------")
-        logger.debug("Tc: %s" % self.Tc)
-        logger.debug("Ta: %s" % self.Ta)
-        logger.debug("Tfilm: %s" % Tfilm)
-        logger.debug("He: %s" % He)
-        logger.debug("pf: %s" % pf)
 
         return pf
 
@@ -180,11 +161,7 @@ class Conductor:
 
         qc = 0.283 * pf**0.5 * self.Diameter**0.75 * (self.Tc-self.Ta)**1.25
         
-        logger.debug("Natural Convection Heat Loss")
-        logger.debug("-----------------------------")
-        logger.debug("Hc = %s" % Hc)
-        logger.debug("pf = %s" % pf)
-        logger.debug("qc = %s" % qc) 
+     
 
         return qc
 
@@ -194,11 +171,7 @@ class Conductor:
         qcn = self.natural_convection_heat_loss()
         qcf = self.forced_convection_heat_loss()
         qc = max(qcn, qcf)
-        logger.debug("qc. Convection Heat Loss")
-        logger.debug("----------------------------")
-        logger.debug("qcn: %s" % qcn)
-        logger.debug("qcf: %s" % qcf)
-        logger.debug("qc: %s" % qc)
+     
 
         return qc
 
@@ -209,13 +182,7 @@ class Conductor:
         qr = 0.138 * self.Diameter * self.Emissivity * \
             ( ((self.Tc + 273.0)/100.0)**4 - ((self.Ta+273.0)/100.0)**4 )  
 
-        logger.debug("qr. Radiated Heat Loss")
-        logger.debug("------------------------")
-        logger.debug("Tc: %s" % self.Tc)
-        logger.debug("Ta: %s" % self.Ta)
-        logger.debug("D: %s" % self.Diameter)
-        logger.debug("E: %s" % self.Emissivity)
-        logger.debug("qr: %s" % qr)
+ 
         return qr
 
     def get_hc(self):
@@ -375,28 +342,11 @@ class Conductor:
         qs = self.Absorptivity * Qs * m.sin(theta) * A * \
              (1.0 + 3.5e-5*self.Elevation - 1.0e-9 * self.Elevation**2)
 
-        logger.debug("qs. Solar Heat Gain")
-        logger.debug("---------------------")
-        logger.debug("Direction: %s" % self.Direction)
-        logger.debug("Hc: %s" % Hc)
-        logger.debug("Zc: %s" % Zc)
-        logger.debug("z1: %s" % z1)
-        logger.debug("alpha (Absorptivity): %s" % self.Absorptivity)
-        logger.debug("theta: %s" % theta)
-        logger.debug("thetaDeg: %s" % thetaDeg)
-        logger.debug("A: %s" % A)
-        logger.debug("Qs (W/ft^2): %s" % Qs)
-        logger.debug("qs (W/ft): %s" % qs)
+   
         return qs
 
     def get_res_Tc(self):
-        logger.debug("R(Tc)")
-        logger.debug("------")
-        logger.debug("RLo: %s" % self.RLo)
-        logger.debug("TLo: %s" % self.TLo)
-        logger.debug("RHi: %s" % self.RHi)
-        logger.debug("RLo: %s" % self.THi)
-
+       
         rTc = self.RLo + ((self.RHi - self.RLo) / \
                 (self.THi - self.TLo))*(self.Tc - self.TLo)
 
@@ -455,14 +405,7 @@ class Conductor:
 
         # pdb.set_trace()
         I_bundled = I * self.ConductorsPerBundle
-        logger.debug("Steady State Thermal Rating")
-        logger.debug("-----------------------------")
-        logger.debug("qc: %s" % qc)
-        logger.debug("qr: %s" % qr)
-        logger.debug("qs: %s" % qs)
-        logger.debug("R(Tc): %s" % rTc)
-        logger.debug("I: %s" % I)
-        logger.debug("I for bundles: %s" % I_bundled)
+      
         return I_bundled
 
     def qs(self):
