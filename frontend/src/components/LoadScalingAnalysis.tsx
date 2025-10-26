@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Clock, Loader2, AlertTriangle, TrendingUp, Zap, Sun, Moon } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Clock, Loader2, AlertTriangle, TrendingUp, Zap, Sun, Moon, Activity } from 'lucide-react'
 
 interface HourlyResult {
   hour: number
@@ -94,6 +94,189 @@ const LoadScalingAnalysis = () => {
     if (scale >= 1.05) return <Sun size={14} />
     if (scale <= 0.95) return <Moon size={14} />
     return <Clock size={14} />
+  }
+
+  const SineGraph = ({ hourlyResults }: { hourlyResults: HourlyResult[] }) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null)
+
+    useEffect(() => {
+      const canvas = canvasRef.current
+      if (!canvas || hourlyResults.length === 0) return
+
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+
+      // Set canvas size
+      const rect = canvas.getBoundingClientRect()
+      const dpr = window.devicePixelRatio || 1
+      canvas.width = rect.width * dpr
+      canvas.height = rect.height * dpr
+      ctx.scale(dpr, dpr)
+
+      const width = rect.width
+      const height = rect.height
+      const padding = { top: 20, right: 40, bottom: 40, left: 50 }
+      const graphWidth = width - padding.left - padding.right
+      const graphHeight = height - padding.top - padding.bottom
+
+      // Clear canvas
+      ctx.clearRect(0, 0, width, height)
+
+      // Calculate scales
+      const maxLoading = Math.max(...hourlyResults.map(h => h.max_loading_pct))
+      const minLoading = Math.min(...hourlyResults.map(h => h.max_loading_pct))
+      const loadingRange = maxLoading - minLoading
+      const yScale = graphHeight / (loadingRange * 1.2) // Add 20% padding
+
+      // Draw background grid
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
+      ctx.lineWidth = 1
+
+      // Horizontal grid lines (every 10%)
+      for (let i = 0; i <= 100; i += 10) {
+        const y = padding.top + graphHeight - ((i - minLoading) * yScale)
+        if (y >= padding.top && y <= padding.top + graphHeight) {
+          ctx.beginPath()
+          ctx.moveTo(padding.left, y)
+          ctx.lineTo(padding.left + graphWidth, y)
+          ctx.stroke()
+
+          // Y-axis labels
+          ctx.fillStyle = '#9ca3af'
+          ctx.font = '11px system-ui'
+          ctx.textAlign = 'right'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(`${i}%`, padding.left - 10, y)
+        }
+      }
+
+      // Vertical grid lines (every 4 hours)
+      for (let i = 0; i <= 24; i += 4) {
+        const x = padding.left + (i / 24) * graphWidth
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
+        ctx.beginPath()
+        ctx.moveTo(x, padding.top)
+        ctx.lineTo(x, padding.top + graphHeight)
+        ctx.stroke()
+
+        // X-axis labels
+        ctx.fillStyle = '#9ca3af'
+        ctx.font = '11px system-ui'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'top'
+        ctx.fillText(`${i}:00`, x, height - padding.bottom + 10)
+      }
+
+      // Draw axes
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(padding.left, padding.top)
+      ctx.lineTo(padding.left, padding.top + graphHeight)
+      ctx.lineTo(padding.left + graphWidth, padding.top + graphHeight)
+      ctx.stroke()
+
+      // Draw area under curve (gradient fill)
+      ctx.beginPath()
+      ctx.moveTo(padding.left, padding.top + graphHeight)
+
+      hourlyResults.forEach((hour, i) => {
+        const x = padding.left + (hour.hour / 24) * graphWidth
+        const y = padding.top + graphHeight - ((hour.max_loading_pct - minLoading) * yScale)
+
+        if (i === 0) {
+          ctx.lineTo(x, y)
+        } else {
+          ctx.lineTo(x, y)
+        }
+      })
+
+      ctx.lineTo(padding.left + graphWidth, padding.top + graphHeight)
+      ctx.closePath()
+
+      const gradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + graphHeight)
+      gradient.addColorStop(0, 'rgba(96, 165, 250, 0.3)')
+      gradient.addColorStop(1, 'rgba(96, 165, 250, 0.05)')
+      ctx.fillStyle = gradient
+      ctx.fill()
+
+      // Draw main curve line
+      ctx.beginPath()
+      hourlyResults.forEach((hour, i) => {
+        const x = padding.left + (hour.hour / 24) * graphWidth
+        const y = padding.top + graphHeight - ((hour.max_loading_pct - minLoading) * yScale)
+
+        if (i === 0) {
+          ctx.moveTo(x, y)
+        } else {
+          ctx.lineTo(x, y)
+        }
+      })
+
+      ctx.strokeStyle = '#60a5fa'
+      ctx.lineWidth = 3
+      ctx.stroke()
+
+      // Draw data points
+      hourlyResults.forEach((hour) => {
+        const x = padding.left + (hour.hour / 24) * graphWidth
+        const y = padding.top + graphHeight - ((hour.max_loading_pct - minLoading) * yScale)
+
+        // Determine color based on loading and overloads
+        let color = '#10b981' // normal
+        if (hour.max_loading_pct >= 100) color = '#ef4444' // overloaded
+        else if (hour.max_loading_pct >= 90) color = '#f97316' // high stress
+        else if (hour.max_loading_pct >= 60) color = '#eab308' // caution
+
+        // Outer circle (glow)
+        ctx.beginPath()
+        ctx.arc(x, y, 6, 0, 2 * Math.PI)
+        ctx.fillStyle = color + '40'
+        ctx.fill()
+
+        // Inner circle
+        ctx.beginPath()
+        ctx.arc(x, y, 4, 0, 2 * Math.PI)
+        ctx.fillStyle = color
+        ctx.fill()
+
+        // White center
+        ctx.beginPath()
+        ctx.arc(x, y, 2, 0, 2 * Math.PI)
+        ctx.fillStyle = hour.overloaded_count > 0 ? '#fff' : color
+        ctx.fill()
+      })
+
+      // Draw axis labels
+      ctx.fillStyle = '#f5f5f7'
+      ctx.font = '12px system-ui'
+
+      // Y-axis label
+      ctx.save()
+      ctx.translate(15, padding.top + graphHeight / 2)
+      ctx.rotate(-Math.PI / 2)
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('Max Line Loading (%)', 0, 0)
+      ctx.restore()
+
+      // X-axis label
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'top'
+      ctx.fillText('Time of Day', padding.left + graphWidth / 2, height - 15)
+
+    }, [hourlyResults])
+
+    return (
+      <canvas
+        ref={canvasRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'block'
+        }}
+      />
+    )
   }
 
   return (
@@ -239,6 +422,78 @@ const LoadScalingAnalysis = () => {
                 {result.summary.peak_overloads.overloaded_count > 0
                   ? `at ${formatHour(result.summary.peak_overloads.hour)}`
                   : 'No overloads'}
+              </div>
+            </div>
+          </div>
+
+          {/* Sine Wave Graph */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{
+              margin: '0 0 0.75rem 0',
+              fontSize: '0.9375rem',
+              fontWeight: 600,
+              color: '#f5f5f7',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              <Activity size={16} />
+              Daily Load Profile
+            </h4>
+
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '10px',
+              padding: '1rem',
+              height: '240px'
+            }}>
+              <SineGraph hourlyResults={result.hourly_results} />
+            </div>
+
+            {/* Graph Legend */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: '1.5rem',
+              marginTop: '0.75rem',
+              fontSize: '0.75rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                <div style={{
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  background: '#10b981'
+                }} />
+                <span style={{ color: '#9ca3af' }}>Normal (&lt;60%)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                <div style={{
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  background: '#eab308'
+                }} />
+                <span style={{ color: '#9ca3af' }}>Caution (60-90%)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                <div style={{
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  background: '#f97316'
+                }} />
+                <span style={{ color: '#9ca3af' }}>High Stress (90-100%)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                <div style={{
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  background: '#ef4444'
+                }} />
+                <span style={{ color: '#9ca3af' }}>Overloaded (≥100%)</span>
               </div>
             </div>
           </div>
