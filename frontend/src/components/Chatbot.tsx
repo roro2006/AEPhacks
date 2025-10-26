@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, MessageCircle, X, Loader2 } from "lucide-react";
+import { Send, MessageCircle, X, Loader2, Sparkles, Zap } from "lucide-react";
 import type { WeatherParams } from "../services/api";
+import "./Chatbot.css";
 
 interface Message {
   id: string;
@@ -14,22 +15,22 @@ interface Message {
 
 interface ChatbotProps {
   weather: WeatherParams;
+  inSidebar?: boolean;
 }
 
 const SUGGESTED_QUESTIONS = [
   "What's the current grid status?",
   "Are there any overloaded lines?",
   "What if temperature increases by 10°C?",
-  "Explain the loading percentage metric",
   "Which lines are most sensitive to weather?",
 ];
 
-export default function Chatbot({ weather }: ChatbotProps) {
+export default function Chatbot({ weather, inSidebar = false }: ChatbotProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
-      text: "Hello! I'm your AI-powered Grid Monitor Assistant. I can explain grid data, predict impacts of variable changes, and help you make informed decisions. Try asking me something or click a suggestion below!",
+      text: "Hello! I'm your AI-powered Grid Monitor Assistant. I can explain grid data, predict impacts of variable changes, and help you make informed decisions. Try asking me something!",
       sender: "bot",
       timestamp: new Date(),
       aiPowered: true,
@@ -123,255 +124,81 @@ export default function Chatbot({ weather }: ChatbotProps) {
     }
   };
 
-  return (
-    <>
-      {/* Chat Button */}
-      {!isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          style={{
-            position: "fixed",
-            bottom: "2rem",
-            right: "2rem",
-            width: "60px",
-            height: "60px",
-            borderRadius: "50%",
-            background:
-              "linear-gradient(135deg,rgb(197, 197, 197) 0%,rgb(208, 195, 222) 100%)",
-            border: "none",
-            boxShadow: "0 4px 12px rgba(102, 126, 234, 0.4)",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            transition: "all 0.3s ease",
-            zIndex: 1000,
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.transform = "scale(1.1)";
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.transform = "scale(1)";
-          }}
-        >
-          <MessageCircle size={28} color="white" />
-        </button>
-      )}
-
-      {/* Chat Window */}
-      {isOpen && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "2rem",
-            right: "2rem",
-            width: "400px",
-            height: "600px",
-            background: "white",
-            borderRadius: "16px",
-            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.15)",
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-            zIndex: 1000,
-          }}
-        >
-          {/* Header */}
-          <div
-            style={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              color: "white",
-              padding: "1rem 1.5rem",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
+  // Sidebar mode - integrated into tab
+  if (inSidebar) {
+    return (
+      <div className="chat-sidebar-content">
+        {/* Messages Container */}
+        <div className="chat-messages chat-messages-sidebar">
+          {messages.map((message) => (
             <div
-              style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+              key={message.id}
+              className={`message-wrapper ${message.sender === "user" ? "message-user" : "message-bot"}`}
             >
-              <MessageCircle size={24} />
-              <div>
-                <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 600 }}>
-                  Grid Assistant
-                </h3>
-                <p style={{ margin: 0, fontSize: "0.75rem", opacity: 0.9 }}>
-                  Always here to help
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "white",
-                cursor: "pointer",
-                padding: "0.25rem",
-                display: "flex",
-                alignItems: "center",
-                transition: "opacity 0.2s",
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.opacity = "0.7";
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.opacity = "1";
-              }}
-            >
-              <X size={24} />
-            </button>
-          </div>
-
-          {/* Messages */}
-          <div
-            style={{
-              flex: 1,
-              overflowY: "auto",
-              padding: "1.5rem",
-              background: "#f9fafb",
-              display: "flex",
-              flexDirection: "column",
-              gap: "1rem",
-            }}
-          >
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                style={{
-                  display: "flex",
-                  justifyContent:
-                    message.sender === "user" ? "flex-end" : "flex-start",
-                }}
-              >
-                <div
-                  style={{
-                    maxWidth: "80%",
-                    padding: "0.75rem 1rem",
-                    borderRadius:
-                      message.sender === "user"
-                        ? "16px 16px 4px 16px"
-                        : "16px 16px 16px 4px",
-                    background:
-                      message.sender === "user"
-                        ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-                        : "white",
-                    color: message.sender === "user" ? "white" : "#1f2937",
-                    boxShadow:
-                      message.sender === "user"
-                        ? "0 2px 8px rgba(102, 126, 234, 0.3)"
-                        : "0 2px 8px rgba(0, 0, 0, 0.1)",
-                    whiteSpace: "pre-wrap",
-                    wordWrap: "break-word",
-                    fontSize: "0.9rem",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {message.text}
-                  <div
-                    style={{
-                      fontSize: "0.65rem",
-                      marginTop: "0.5rem",
-                      opacity: 0.7,
-                    }}
-                  >
+              {message.sender === "bot" && (
+                <div className="message-avatar">
+                  <Zap size={14} />
+                </div>
+              )}
+              <div className="message-bubble">
+                <div className="message-text">{message.text}</div>
+                <div className="message-meta">
+                  <span className="message-time">
                     {message.timestamp.toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
-                  </div>
-                </div>
-              </div>
-            ))}
-            {loading && (
-              <div style={{ display: "flex", justifyContent: "flex-start" }}>
-                <div
-                  style={{
-                    padding: "0.75rem 1rem",
-                    borderRadius: "16px 16px 16px 4px",
-                    background: "white",
-                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                  }}
-                >
-                  <Loader2
-                    size={16}
-                    style={{ animation: "spin 1s linear infinite" }}
-                  />
-                  <span style={{ fontSize: "0.9rem", color: "#6b7280" }}>
-                    AI is thinking...
                   </span>
+                  {message.aiPowered && (
+                    <span className="message-ai-badge">
+                      <Sparkles size={10} />
+                      AI
+                    </span>
+                  )}
                 </div>
               </div>
-            )}
+            </div>
+          ))}
 
-            {/* Suggested Questions */}
-            {showSuggestions && messages.length === 1 && (
-              <div style={{ marginTop: "1rem" }}>
-                <p
-                  style={{
-                    fontSize: "0.75rem",
-                    color: "#6b7280",
-                    marginBottom: "0.5rem",
-                    fontWeight: 600,
-                  }}
-                >
-                  SUGGESTED QUESTIONS:
-                </p>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "0.5rem",
-                  }}
-                >
-                  {SUGGESTED_QUESTIONS.map((suggestion, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => handleSuggestionClick(suggestion)}
-                      style={{
-                        padding: "0.6rem 0.75rem",
-                        background: "white",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: "8px",
-                        fontSize: "0.8rem",
-                        color: "#374151",
-                        cursor: "pointer",
-                        textAlign: "left",
-                        transition: "all 0.2s",
-                        boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
-                      }}
-                      onMouseOver={(e) => {
-                        e.currentTarget.style.background = "#f3f4f6";
-                        e.currentTarget.style.borderColor = "#667eea";
-                      }}
-                      onMouseOut={(e) => {
-                        e.currentTarget.style.background = "white";
-                        e.currentTarget.style.borderColor = "#e5e7eb";
-                      }}
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
+          {loading && (
+            <div className="message-wrapper message-bot">
+              <div className="message-avatar">
+                <Loader2 size={14} className="spin-animation" />
+              </div>
+              <div className="message-bubble message-loading">
+                <div className="typing-indicator">
+                  <span></span>
+                  <span></span>
+                  <span></span>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            <div ref={messagesEndRef} />
-          </div>
+          {/* Suggested Questions */}
+          {showSuggestions && messages.length === 1 && (
+            <div className="suggestions-container">
+              <p className="suggestions-title">Try asking:</p>
+              <div className="suggestions-grid">
+                {SUGGESTED_QUESTIONS.map((suggestion, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="suggestion-chip"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-          {/* Input */}
-          <div
-            style={{
-              padding: "1rem 1.5rem",
-              background: "white",
-              borderTop: "1px solid #e5e7eb",
-              display: "flex",
-              gap: "0.75rem",
-            }}
-          >
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input Area */}
+        <div className="chat-input-container">
+          <div className="chat-input-wrapper">
             <input
               type="text"
               value={input}
@@ -379,57 +206,21 @@ export default function Chatbot({ weather }: ChatbotProps) {
               onKeyPress={handleKeyPress}
               placeholder="Ask me anything about the grid..."
               disabled={loading}
-              style={{
-                flex: 1,
-                padding: "0.75rem 1rem",
-                border: "1px solid #e5e7eb",
-                borderRadius: "24px",
-                outline: "none",
-                fontSize: "0.9rem",
-                transition: "border-color 0.2s",
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = "#667eea";
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = "#e5e7eb";
-              }}
+              className="chat-input"
             />
             <button
-              onClick={sendMessage}
+              onClick={() => sendMessage()}
               disabled={loading || !input.trim()}
-              style={{
-                width: "44px",
-                height: "44px",
-                borderRadius: "50%",
-                background:
-                  input.trim() && !loading
-                    ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-                    : "#e5e7eb",
-                border: "none",
-                cursor: input.trim() && !loading ? "pointer" : "not-allowed",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "all 0.2s",
-              }}
-              onMouseOver={(e) => {
-                if (input.trim() && !loading) {
-                  e.currentTarget.style.transform = "scale(1.05)";
-                }
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.transform = "scale(1)";
-              }}
+              className={`chat-send-btn ${input.trim() && !loading ? "chat-send-btn-active" : ""}`}
             >
-              <Send
-                size={20}
-                color={input.trim() && !loading ? "white" : "#9ca3af"}
-              />
+              <Send size={18} />
             </button>
           </div>
         </div>
-      )}
-    </>
-  );
+      </div>
+    );
+  }
+
+  // Standalone floating mode (not used anymore, but keeping for compatibility)
+  return null;
 }

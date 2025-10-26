@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import "./App.css";
-import { Activity, Loader2, Map, Table, Filter, X, BarChart3 } from "lucide-react";
+import { Activity, Loader2, Map, Table, Filter, X, BarChart3, MessageCircle } from "lucide-react";
 import {
   fetchLineRatings,
   type WeatherParams,
@@ -13,7 +13,7 @@ import Chatbot from "./components/Chatbot";
 import NetworkMap from "./components/NetworkMap";
 import OutageAnalysis from "./components/OutageAnalysis";
 
-type ViewTab = "map" | "table" | "analysis";
+type ViewTab = "map" | "table" | "analysis" | "chat";
 type FilterType = "all" | "critical" | "high" | "caution" | "normal" | "az" | "za";
 
 function App() {
@@ -100,6 +100,13 @@ function App() {
           >
             <BarChart3 size={18} />
             Analysis
+          </button>
+          <button
+            className={`sidebar-tab ${activeTab === "chat" ? "active" : ""}`}
+            onClick={() => setActiveTab("chat")}
+          >
+            <MessageCircle size={18} />
+            AI Chat
           </button>
         </div>
 
@@ -292,6 +299,12 @@ function App() {
             <OutageAnalysis onOutageComplete={setOutageResult} />
           </div>
         )}
+
+        {activeTab === "chat" && (
+          <div className="chat-tab-container">
+            <Chatbot weather={weather} inSidebar={true} />
+          </div>
+        )}
       </aside>
 
       {/* Line Detail Pane */}
@@ -413,9 +426,6 @@ function App() {
           </div>
         </div>
       )}
-
-      {/* Chatbot Component */}
-      <Chatbot weather={weather} />
     </div>
   );
 }
