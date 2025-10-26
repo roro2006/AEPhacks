@@ -12,7 +12,8 @@
       "Bash(venv/Scripts/python.exe -m pip:*)",
       "Bash(venv/Scripts/python.exe:*)",
       "Bash(git add:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
