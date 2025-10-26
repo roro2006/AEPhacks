@@ -25,10 +25,16 @@ python app.py
 # Required
 ANTHROPIC_API_KEY=sk-ant-api03-...
 
-# Optional
+# Optional - AI Chatbot
 CLAUDE_MODEL=claude-3-5-sonnet-20241022  # Default model
 MAX_TOKENS=1024                           # Max response length
 TEMPERATURE=0.7                           # Response creativity (0.0-1.0)
+
+# Optional - Autonomous Agent
+AGENT_ENABLED=true                        # Enable/disable autonomous agent
+AGENT_STATE_PATH=backend/data/agent_state.json  # Agent state persistence
+AGENT_LOG_PATH=backend/data/agent_decisions.log  # Decision audit log
+AGENT_PERSISTENCE=true                    # Enable state persistence
 ```
 
 ### API Endpoints
@@ -70,6 +76,119 @@ Specialized variable impact analysis
   "variable": "temperature",
   "change": {"from": 25, "to": 35},
   "weather": { ... }
+}
+```
+
+### Autonomous Agent Endpoints
+
+#### GET /api/agent/status
+Get current agent state and status
+
+**Response:**
+```json
+{
+  "agent_enabled": true,
+  "last_run": "2024-01-01T12:00:00Z",
+  "summary": {
+    "open_issues_count": 2,
+    "last_issues": [...]
+  },
+  "version": "1.0.0",
+  "state_info": {
+    "history_size": 10,
+    "action_history_size": 5,
+    "thresholds": {...}
+  }
+}
+```
+
+#### POST /api/agent/predict
+Predict future grid states using weather forecast
+
+**Request:**
+```json
+{
+  "weather_forecast": [
+    {
+      "timestamp": "2024-01-01T13:00:00Z",
+      "Ta": 30,
+      "WindVelocity": 2.0,
+      "WindAngleDeg": 90
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "predictions": [
+    {
+      "timestamp": "2024-01-01T13:00:00Z",
+      "predicted_ratings": {"L1": 100.0, "L2": 95.0},
+      "risk_levels": {"L1": "low", "L2": "medium"},
+      "confidence": 0.9
+    }
+  ],
+  "model": "ieee738",
+  "generated_at": "2024-01-01T12:00:00Z"
+}
+```
+
+#### POST /api/agent/recommendations
+Generate prioritized recommendations
+
+**Request:**
+```json
+{
+  "scope": "grid",
+  "limit": 5,
+  "weather": {
+    "ambient_temp": 35,
+    "wind_speed": 1.5
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "recommendations": [
+    {
+      "id": "rec_001",
+      "priority": 1,
+      "action": "Immediate load shedding",
+      "estimated_impact": {
+        "mva": -15.0,
+        "loading_pct": -10.0
+      },
+      "confidence": 0.95,
+      "justification": "Critical overload detected"
+    }
+  ]
+}
+```
+
+#### POST /api/agent/feedback
+Submit operator feedback on recommendations
+
+**Request:**
+```json
+{
+  "action_id": "rec_001",
+  "result": {
+    "result": "accepted",
+    "success": true,
+    "metrics": {"loading_reduction": 12.0},
+    "notes": "Action was effective"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "status": "ok"
 }
 ```
 
@@ -199,15 +318,62 @@ CLAUDE_MODEL=claude-3-opus-20240229   # Smarter, expensive
 **Generic responses**
 → Check grid context is being passed correctly
 
+### Autonomous Agent Features
+
+#### How the Agent Works
+
+1. **Monitoring**: Continuously analyzes grid state using IEEE 738 calculations
+2. **Issue Detection**: Detects high loading, trends, rating declines, and anomalies
+3. **Prediction**: Forecasts future grid states based on weather forecasts
+4. **Recommendations**: Generates prioritized actions with estimated impacts
+5. **Learning**: Adapts thresholds based on operator feedback
+
+#### Agent Learning Process
+
+The agent learns from operator feedback to improve recommendations:
+
+1. Operator accepts/rejects recommendation
+2. Agent adjusts detection thresholds:
+   - **Accepted + Successful**: Maintains current thresholds
+   - **Accepted + Unsuccessful**: Lowers thresholds (more conservative)
+   - **Rejected**: Raises thresholds (less aggressive)
+3. State is persisted to `agent_state.json`
+4. All decisions logged to `agent_decisions.log`
+
+#### Safety & Override Instructions
+
+**Safety Validation:**
+- No recommendations for load increases >10% without confirmation
+- All actions include confidence levels
+- Critical actions require operator approval
+- State changes are logged for audit
+
+**Override Agent:**
+```bash
+# Disable agent temporarily
+export AGENT_ENABLED=false
+python app.py
+
+# Disable persistence
+export AGENT_PERSISTENCE=false
+```
+
+**Reset Agent State:**
+```bash
+rm backend/data/agent_state.json
+rm backend/data/agent_decisions.log
+# Agent will start fresh on next run
+```
+
 ### Future Enhancements
 
 Ideas for improvement:
+- [x] Proactive alerts ✅ (Implemented)
+- [x] Learning from user feedback ✅ (Implemented)
 - [ ] Conversation history/memory
 - [ ] Caching for common questions
 - [ ] Multi-language support
 - [ ] Voice interface
-- [ ] Proactive alerts
-- [ ] Learning from user feedback
 - [ ] Integration with SCADA systems
 
 ---
