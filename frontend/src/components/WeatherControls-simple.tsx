@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { WeatherParams } from '../services/api'
-import { CloudRain, Wind, Sun, RefreshCw } from 'lucide-react'
+import { CloudRain, Wind, Sun } from 'lucide-react'
 
 interface WeatherControlsProps {
   weather: WeatherParams
@@ -18,26 +18,23 @@ const WeatherControls: React.FC<WeatherControlsProps> = ({ weather, onChange, lo
 
   return (
     <div style={{
-      background: 'rgba(20, 20, 22, 0.85)',
-      backdropFilter: 'blur(10px)',
-      WebkitBackdropFilter: 'blur(10px)',
-      padding: '1.5rem',
-      borderRadius: '14px',
-      border: '1px solid rgba(255, 255, 255, 0.08)',
-      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-      color: '#f5f5f7'
+      background: 'white',
+      borderRadius: '12px',
+      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+      padding: '1.5rem'
     }}>
       <h2 style={{
         fontSize: '1.25rem',
         fontWeight: 600,
         marginBottom: '1.5rem',
-        color: '#ffffff'
+        color: '#111827'
       }}>Weather Controls</h2>
+
       <div style={{ marginBottom: '1.5rem' }}>
         <label style={{
           display: 'block',
           marginBottom: '0.5rem',
-          color: '#e5e5e7',
+          color: '#374151',
           fontSize: '0.875rem',
           fontWeight: 500
         }}>
@@ -52,11 +49,12 @@ const WeatherControls: React.FC<WeatherControlsProps> = ({ weather, onChange, lo
           style={{ width: '100%' }}
         />
       </div>
+
       <div style={{ marginBottom: '1.5rem' }}>
         <label style={{
           display: 'block',
           marginBottom: '0.5rem',
-          color: '#e5e5e7',
+          color: '#374151',
           fontSize: '0.875rem',
           fontWeight: 500
         }}>
@@ -72,23 +70,22 @@ const WeatherControls: React.FC<WeatherControlsProps> = ({ weather, onChange, lo
           style={{ width: '100%' }}
         />
       </div>
+
       <button
         onClick={() => onChange(localWeather)}
+        disabled={loading}
         style={{
           width: '100%',
           padding: '0.75rem 1.5rem',
-          background: 'rgba(255, 255, 255, 0.1)',
-          color: '#f5f5f7',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
+          background: loading ? '#9ca3af' : '#3b82f6',
+          color: 'white',
+          border: 'none',
           borderRadius: '8px',
           fontWeight: 600,
-          cursor: 'pointer',
-          transition: 'all 0.2s'
+          cursor: loading ? 'not-allowed' : 'pointer'
         }}
-        onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
-        onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
       >
-        Apply Changes
+        {loading ? 'Calculating...' : 'Apply Changes'}
       </button>
     </div>
   )
