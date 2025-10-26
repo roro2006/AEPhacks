@@ -20,8 +20,8 @@ class GridChatbotService:
             )
 
         self.client = Anthropic(api_key=api_key)
-        # Use Claude 3 Opus as fallback (most widely available)
-        self.model = os.getenv('CLAUDE_MODEL', 'claude-3-opus-20240229')
+        # Use Claude 3.5 Sonnet (latest available model)
+        self.model = os.getenv('CLAUDE_MODEL', 'claude-3-5-haiku-20241022')
         self.max_tokens = int(os.getenv('MAX_TOKENS', 1024))
         self.temperature = float(os.getenv('TEMPERATURE', 0.7))
 
