@@ -10,7 +10,8 @@
       "Bash(python app.py:*)",
       "Bash(python -m pip install:*)",
       "Bash(venv/Scripts/python.exe -m pip:*)",
-      "Bash(venv/Scripts/python.exe:*)"
+      "Bash(venv/Scripts/python.exe:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

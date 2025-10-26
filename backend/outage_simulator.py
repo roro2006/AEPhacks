@@ -18,6 +18,38 @@ from config import DataConfig
 logger = logging.getLogger(__name__)
 
 
+def convert_numpy_types(obj):
+    """
+    Recursively convert numpy types to native Python types for JSON serialization.
+
+    Args:
+        obj: Object that may contain numpy types
+
+    Returns:
+        Object with all numpy types converted to native Python types
+    """
+    if isinstance(obj, dict):
+        return {key: convert_numpy_types(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
+    elif isinstance(obj, np.bool_):
+        return bool(obj)
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        if np.isnan(obj) or np.isinf(obj):
+            return None
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return convert_numpy_types(obj.tolist())
+    elif isinstance(obj, (pd.Series, pd.DataFrame)):
+        return convert_numpy_types(obj.to_dict())
+    elif pd.isna(obj):
+        return None
+    else:
+        return obj
+
+
 class OutageSimulator:
     """
     Simulates transmission line outages and analyzes grid impacts.
@@ -76,14 +108,14 @@ class OutageSimulator:
                 return {'converged': True, 'linear': True}
             else:
                 info = self.network.pf()
-                converged = info.converged.any().any()
-                max_error = info.error.max().max()
+                converged = bool(info.converged.any().any())
+                max_error = float(info.error.max().max())
 
                 logger.info(f"Power flow converged: {converged}, max error: {max_error:.2e}")
 
                 return {
                     'converged': converged,
-                    'max_error': float(max_error),
+                    'max_error': max_error,
                     'linear': False
                 }
         except Exception as e:
@@ -178,7 +210,8 @@ class OutageSimulator:
         analysis['power_flow_info'] = pf_info
         analysis['success'] = True
 
-        return analysis
+        # Convert all numpy types to native Python types for JSON serialization
+        return convert_numpy_types(analysis)
 
     def _analyze_outage_results(self, outage_lines: List[str]) -> Dict[str, Any]:
         """
