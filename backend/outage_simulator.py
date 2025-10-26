@@ -130,10 +130,13 @@ class OutageSimulator:
         # Store baseline line flows (p0 = active power flow from bus0)
         self.baseline_flows = self.network.lines_t['p0'].copy()
 
+        # Get the snapshot index (use the first/only snapshot)
+        snapshot = self.network.snapshots[0]
+
         # Calculate baseline loading percentages
         self.baseline_loading = {}
         for line_name in self.network.lines.index:
-            flow = abs(self.network.lines_t['p0'].loc['now', line_name])
+            flow = abs(self.network.lines_t['p0'].loc[snapshot, line_name])
             s_nom = self.network.lines.loc[line_name, 's_nom']
             if s_nom > 0:
                 self.baseline_loading[line_name] = (flow / s_nom) * 100
@@ -177,11 +180,14 @@ class OutageSimulator:
 
         logger.info(f"Simulating outage of lines: {outage_lines}")
 
+        # Get the snapshot index (use the first/only snapshot)
+        snapshot = self.network.snapshots[0]
+
         # Disable the outaged lines
         for line_name in outage_lines:
             self.network.lines.loc[line_name, "active"] = False
             # Clear old solve data for disabled lines
-            self.network.lines_t['p0'].loc['now', line_name] = 0.0
+            self.network.lines_t['p0'].loc[snapshot, line_name] = 0.0
 
         # Run power flow with outages
         try:
@@ -236,10 +242,13 @@ class OutageSimulator:
         # Get active lines (excluding outaged ones)
         active_lines = self.network.lines[self.network.lines['active']].index
 
+        # Get the snapshot index (use the first/only snapshot)
+        snapshot = self.network.snapshots[0]
+
         # Calculate loading for each active line
         loading_data = []
         for line_name in self.network.lines.index:
-            flow_mw = abs(self.network.lines_t['p0'].loc['now', line_name])
+            flow_mw = abs(self.network.lines_t['p0'].loc[snapshot, line_name])
             s_nom = self.network.lines.loc[line_name, 's_nom']
             is_active = self.network.lines.loc[line_name, 'active']
 
