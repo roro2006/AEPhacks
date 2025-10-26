@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import type { WeatherParams } from '../services/api'
-import { CloudRain, Wind, Sun, RefreshCw } from 'lucide-react'
 
 interface WeatherControlsProps {
   weather: WeatherParams
@@ -8,7 +7,7 @@ interface WeatherControlsProps {
   loading: boolean
 }
 
-const WeatherControls: React.FC<WeatherControlsProps> = ({ weather, onChange, loading }) => {
+const WeatherControls: React.FC<WeatherControlsProps> = ({ weather, onChange }) => {
   const [localWeather, setLocalWeather] = useState(weather)
 
   const handleChange = (key: keyof WeatherParams, value: number | string) => {

@@ -555,6 +555,239 @@ def get_line_details(line_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/chatbot', methods=['POST'])
+def agent_monitor():
+    """
+    Analyze current grid conditions and detect issues
+
+    Expected JSON body:
+    {
+        "weather": {
+            "ambient_temp": 25,
+            "wind_speed": 2.0,
+            "wind_angle": 90,
+            "sun_time": 12,
+            "date": "12 Jun"
+        }
+    }
+
+    Returns:
+        Detected issues, recommendations, and grid status
+    """
+    try:
+        if not AGENT_ENABLED:
+            return jsonify({
+                "error": "Grid Monitor Agent not configured. Please set ANTHROPIC_API_KEY."
+            }), 503
+
+        data = request.json
+        weather = data.get('weather', {})
+
+        # Set weather parameters with defaults
+        weather_params = {
+            'Ta': weather.get('ambient_temp', 25),
+            'WindVelocity': weather.get('wind_speed', 2.0),
+            'WindAngleDeg': weather.get('wind_angle', 90),
+            'SunTime': weather.get('sun_time', 12),
+            'Date': weather.get('date', '12 Jun'),
+            'Emissivity': 0.8,
+            'Absorptivity': 0.8,
+            'Direction': 'EastWest',
+            'Atmosphere': 'Clear',
+            'Elevation': 1000,
+            'Latitude': 27
+        }
+
+        # Calculate current ratings
+        results = calculator.calculate_all_line_ratings(weather_params)
+
+        # Run autonomous monitoring
+        monitoring_result = agent_service.monitor_grid_state(results, weather_params)
+
+        return jsonify(clean_nan_values(monitoring_result))
+
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+
+@app.route('/api/agent/predictions', methods=['POST'])
+def agent_predictions():
+    """
+    Predict future grid states based on weather forecast
+
+    Expected JSON body:
+    {
+        "weather_forecast": [
+            {
+                "ambient_temp": 30,
+                "wind_speed": 1.5,
+                "wind_angle": 90,
+                "sun_time": 13,
+                "date": "12 Jun"
+            },
+            {
+                "ambient_temp": 35,
+                "wind_speed": 1.0,
+                "wind_angle": 90,
+                "sun_time": 14,
+                "date": "12 Jun"
+            }
+        ]
+    }
+
+    Returns:
+        Future state predictions with confidence levels and alerts
+    """
+    try:
+        if not AGENT_ENABLED:
+            return jsonify({
+                "error": "Grid Monitor Agent not configured. Please set ANTHROPIC_API_KEY."
+            }), 503
+
+        data = request.json
+        weather_forecast_raw = data.get('weather_forecast', [])
+
+        # Convert weather forecast to full parameter format
+        weather_forecast = []
+        for forecast in weather_forecast_raw:
+            weather_params = {
+                'Ta': forecast.get('ambient_temp', 25),
+                'WindVelocity': forecast.get('wind_speed', 2.0),
+                'WindAngleDeg': forecast.get('wind_angle', 90),
+                'SunTime': forecast.get('sun_time', 12),
+                'Date': forecast.get('date', '12 Jun'),
+                'Emissivity': 0.8,
+                'Absorptivity': 0.8,
+                'Direction': 'EastWest',
+                'Atmosphere': 'Clear',
+                'Elevation': 1000,
+                'Latitude': 27
+            }
+            weather_forecast.append(weather_params)
+
+        # Get predictions
+        predictions = agent_service.predict_future_states(weather_forecast)
+
+        return jsonify(clean_nan_values(predictions))
+
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+
+@app.route('/api/agent/recommendations', methods=['POST'])
+def agent_recommendations():
+    """
+    Generate prioritized recommendations based on detected issues
+
+    Expected JSON body:
+    {
+        "weather": {...},
+        "include_ai": true  # Optional: use AI for enhanced recommendations
+    }
+
+    Returns:
+        Prioritized list of recommendations with justifications
+    """
+    try:
+        if not AGENT_ENABLED:
+            return jsonify({
+                "error": "Grid Monitor Agent not configured. Please set ANTHROPIC_API_KEY."
+            }), 503
+
+        data = request.json
+        weather = data.get('weather', {})
+
+        # Set weather parameters with defaults
+        weather_params = {
+            'Ta': weather.get('ambient_temp', 25),
+            'WindVelocity': weather.get('wind_speed', 2.0),
+            'WindAngleDeg': weather.get('wind_angle', 90),
+            'SunTime': weather.get('sun_time', 12),
+            'Date': weather.get('date', '12 Jun'),
+            'Emissivity': 0.8,
+            'Absorptivity': 0.8,
+            'Direction': 'EastWest',
+            'Atmosphere': 'Clear',
+            'Elevation': 1000,
+            'Latitude': 27
+        }
+
+        # Calculate current ratings
+        results = calculator.calculate_all_line_ratings(weather_params)
+
+        # Monitor grid state to detect issues
+        monitoring_result = agent_service.monitor_grid_state(results, weather_params)
+
+        # Generate recommendations based on detected issues
+        recommendations = agent_service.generate_recommendations(
+            monitoring_result.get('issues', [])
+        )
+
+        return jsonify(clean_nan_values(recommendations))
+
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+
+@app.route('/api/agent/learn', methods=['POST'])
+def agent_learn():
+    """
+    Record action outcome for agent learning
+
+    Expected JSON body:
+    {
+        "action": {
+            "action_id": "action_123",
+            "action_type": "alert",
+            "description": "Reduced load on line L48",
+            "grid_state_before": {...}
+        },
+        "result": {
+            "outcome": "successful",  # 'successful', 'failed', 'ignored'
+            "impact_score": 0.8,
+            "grid_state_after": {...}
+        }
+    }
+    """
+    try:
+        if not AGENT_ENABLED:
+            return jsonify({
+                "error": "Grid Monitor Agent not configured. Please set ANTHROPIC_API_KEY."
+            }), 503
+
+        from agent_service import ActionRecord
+
+        data = request.json
+        action_data = data.get('action', {})
+        result_data = data.get('result', {})
+
+        # Create ActionRecord
+        action = ActionRecord(
+            action_id=action_data.get('action_id', agent_service._generate_id('action')),
+            timestamp=action_data.get('timestamp', pd.Timestamp.now().isoformat()),
+            action_type=action_data.get('action_type', 'manual'),
+            description=action_data.get('description', ''),
+            grid_state_before=action_data.get('grid_state_before', {})
+        )
+
+        # Learn from outcome
+        agent_service.learn_from_outcomes(action, result_data)
+
+        return jsonify({
+            "success": True,
+            "message": "Action outcome recorded successfully",
+            "patterns_learned": len(agent_service.state.recognized_patterns),
+            "action_id": action.action_id
+        })
+
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+
+@app.route('/api/chatbot', methods=['POST'])
 def chatbot():
     """
     AI-powered chatbot endpoint with data explanation and impact analysis
@@ -888,138 +1121,6 @@ def generate_outage_map():
             "trace": trace,
             "tip": "Server encountered an error processing the request"
         }), 500
-
-@app.route('/api/load-scaling/daily', methods=['GET'])
-def analyze_daily_load_scaling():
-    """
-    Analyze transmission system stress throughout a 24-hour period
-    with varying load/generation levels.
-
-    Query parameters:
-        hours: Number of hours to analyze (default 24)
-
-    Returns:
-        JSON with hourly analysis results and summary
-    """
-    try:
-        from load_scaling_analyzer import LoadScalingAnalyzer
-
-        hours = request.args.get('hours', 24, type=int)
-
-        if hours < 1 or hours > 48:
-            return jsonify({
-                "success": False,
-                "error": "Hours must be between 1 and 48"
-            }), 400
-
-        logger.info(f"Analyzing daily load scaling for {hours} hours...")
-
-        # Initialize analyzer
-        analyzer = LoadScalingAnalyzer()
-
-        # Run daily analysis
-        result = analyzer.analyze_daily_profile(hours)
-
-        # Clean NaN values
-        result_clean = clean_nan_values(result)
-
-        logger.info(f"Daily load scaling analysis complete: {result_clean['summary']['hours_converged']}/{hours} hours converged")
-
-        return jsonify(result_clean)
-
-    except Exception as e:
-        import traceback
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "trace": traceback.format_exc()
-        }), 500
-
-
-@app.route('/api/load-scaling/hour/<int:hour>', methods=['GET'])
-def analyze_single_hour_loading(hour):
-    """
-    Analyze transmission system at a specific hour of the day.
-
-    Path parameter:
-        hour: Hour of day (0-23)
-
-    Returns:
-        JSON with analysis results for the specified hour
-    """
-    try:
-        from load_scaling_analyzer import LoadScalingAnalyzer
-
-        if hour < 0 or hour >= 24:
-            return jsonify({
-                "success": False,
-                "error": f"Invalid hour: {hour}. Must be 0-23."
-            }), 400
-
-        logger.info(f"Analyzing load scaling for hour {hour}...")
-
-        # Initialize analyzer
-        analyzer = LoadScalingAnalyzer()
-
-        # Analyze single hour
-        result = analyzer.analyze_single_hour(hour)
-
-        # Clean NaN values
-        result_clean = clean_nan_values(result)
-
-        return jsonify(result_clean)
-
-    except Exception as e:
-        import traceback
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "trace": traceback.format_exc()
-        }), 500
-
-
-@app.route('/api/load-scaling/profile', methods=['GET'])
-def get_load_profile():
-    """
-    Get the daily load profile without running full analysis.
-
-    Query parameters:
-        hours: Number of hours (default 24)
-
-    Returns:
-        JSON with load profile data points
-    """
-    try:
-        from load_scaling_analyzer import LoadScalingAnalyzer
-
-        hours = request.args.get('hours', 24, type=int)
-
-        if hours < 1 or hours > 48:
-            return jsonify({
-                "success": False,
-                "error": "Hours must be between 1 and 48"
-            }), 400
-
-        # Initialize analyzer
-        analyzer = LoadScalingAnalyzer()
-
-        # Get profile
-        profile = analyzer.get_load_profile(hours)
-
-        return jsonify({
-            "success": True,
-            "hours": hours,
-            "profile": profile
-        })
-
-    except Exception as e:
-        import traceback
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "trace": traceback.format_exc()
-        }), 500
-
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { fetchThresholdAnalysis, WeatherParams, ThresholdResponse } from '../services/api'
+import { fetchThresholdAnalysis } from '../services/api'
+import type { WeatherParams, ThresholdResponse } from '../services/api'
 import { TrendingUp, Loader2, AlertTriangle } from 'lucide-react'
 import './ThresholdAnalysis.css'
 

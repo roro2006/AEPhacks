@@ -4,7 +4,8 @@ import GridMap from './components/GridMap'
 import WeatherControls from './components/WeatherControls'
 import AlertDashboard from './components/AlertDashboard'
 import ThresholdAnalysis from './components/ThresholdAnalysis'
-import { fetchLineRatings, WeatherParams, RatingResponse } from './services/api'
+import { fetchLineRatings } from './services/api'
+import type { WeatherParams, RatingResponse } from './services/api'
 import { Activity } from 'lucide-react'
 
 function App() {

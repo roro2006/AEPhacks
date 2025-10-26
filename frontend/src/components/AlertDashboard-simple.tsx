@@ -291,7 +291,7 @@ const AlertDashboard: React.FC<AlertDashboardProps> = ({
           <span>Maximum Loading:</span>
           <strong
             style={{
-              color: summary.max_loading >= 100 ? "#dc2626" : "#111827",
+              color: summary.max_loading >= 100 ? "#dc2626" : "#f5f5f7",
             }}
           >
             {summary.max_loading.toFixed(1)}%

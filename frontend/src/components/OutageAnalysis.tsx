@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Zap, Loader2, AlertTriangle, Activity, TrendingUp, Map } from 'lucide-react'
+import { Zap, Loader2, AlertTriangle, Activity, TrendingUp } from 'lucide-react'
 import {
   fetchAvailableLines,
   simulateOutage,

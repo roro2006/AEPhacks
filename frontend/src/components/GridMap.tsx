@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { MapContainer, TileLayer, GeoJSON, Popup } from 'react-leaflet'
+import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet'
 import { fetchGridTopology } from '../services/api'
 import type { RatingResponse, LineRating } from '../services/api'
 import { Loader2 } from 'lucide-react'
@@ -83,11 +83,11 @@ const GridMap: React.FC<GridMapProps> = ({ ratings, loading }) => {
       })
 
       // Hover effect
-      layer.on('mouseover', function() {
+      layer.on('mouseover', function(this: L.Path) {
         this.setStyle({ weight: 6, opacity: 1 })
       })
 
-      layer.on('mouseout', function() {
+      layer.on('mouseout', function(this: L.Path) {
         this.setStyle({ weight: getLineWeight(lineName), opacity: 0.8 })
       })
     }

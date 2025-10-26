@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import './App.css'
 
 // Import components one at a time to find the issue

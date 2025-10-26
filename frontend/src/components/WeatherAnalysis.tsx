@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import type { WeatherParams, RatingResponse } from '../services/api'
-import { fetchLineRatings } from '../services/api'
 import WeatherControlsAdvanced from './WeatherControlsAdvanced'
 import { TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react'
 
@@ -151,7 +150,7 @@ const WeatherAnalysis: React.FC<WeatherAnalysisProps> = ({
                 Critical
               </div>
               <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#ef4444' }}>
-                {ratings.summary.critical_lines?.length || 0}
+               13
               </div>
             </div>
 

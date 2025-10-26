@@ -1,7 +1,15 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, MessageCircle, X, Loader2, Sparkles, Zap } from "lucide-react";
+import { Send, Loader2, Sparkles, Zap } from "lucide-react";
 import type { WeatherParams } from "../services/api";
 import "./Chatbot.css";
+
+interface AgentInsights {
+  summary: string;
+  issues_count: number;
+  critical_count: number;
+  high_count: number;
+  issues: any[];
+}
 
 interface Message {
   id: string;
@@ -11,6 +19,7 @@ interface Message {
   queryType?: string;
   aiPowered?: boolean;
   tokens?: number;
+  agentInsights?: AgentInsights;
 }
 
 interface ChatbotProps {
@@ -26,7 +35,6 @@ const SUGGESTED_QUESTIONS = [
 ];
 
 export default function Chatbot({ weather, inSidebar = false }: ChatbotProps) {
-  const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -97,6 +105,7 @@ export default function Chatbot({ weather, inSidebar = false }: ChatbotProps) {
         queryType: data.query_type,
         aiPowered: data.ai_powered,
         tokens: data.tokens,
+        agentInsights: data.agent_insights,
       };
 
       setMessages((prev) => [...prev, botMessage]);
@@ -142,6 +151,18 @@ export default function Chatbot({ weather, inSidebar = false }: ChatbotProps) {
               )}
               <div className="message-bubble">
                 <div className="message-text">{message.text}</div>
+                {message.agentInsights && (
+                  <div className="agent-insights-badge" style={{
+                    marginTop: '8px',
+                    padding: '8px',
+                    background: message.agentInsights.critical_count > 0 ? '#fee' : '#ffe',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    borderLeft: `3px solid ${message.agentInsights.critical_count > 0 ? '#f44' : '#fa0'}`
+                  }}>
+                    <strong>⚠️ Agent Alert:</strong> {message.agentInsights.summary}
+                  </div>
+                )}
                 <div className="message-meta">
                   <span className="message-time">
                     {message.timestamp.toLocaleTimeString([], {

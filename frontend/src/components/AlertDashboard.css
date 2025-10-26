@@ -107,7 +107,7 @@
 .metric-value {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #111827;
+  color: #e0e0e0;
 }
 
 .summary-stats {
@@ -123,11 +123,11 @@
 }
 
 .stat-row span {
-  color: #6b7280;
+  color: #cecece;
 }
 
 .stat-row strong {
-  color: #111827;
+  color: #cecece;
   font-weight: 600;
 }
 
@@ -186,7 +186,7 @@
 
 .line-name {
   font-weight: 600;
-  color: #111827;
+  color: #e7e7e7;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -194,7 +194,7 @@
 
 .line-id {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: #ffffff;
 }
 
 .line-stats {
