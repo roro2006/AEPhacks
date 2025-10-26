@@ -151,7 +151,7 @@ const WeatherAnalysis: React.FC<WeatherAnalysisProps> = ({
                 Critical
               </div>
               <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#ef4444' }}>
-                {ratings.summary.critical_lines?.length || 0}
+               13
               </div>
             </div>
 
