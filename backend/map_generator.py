@@ -406,7 +406,7 @@ class GridMapGenerator:
 
         # Color scheme based on outage stress levels
         stress_colors = {
-            'outaged': 'rgba(128, 128, 128, 0.3)',     # Gray/translucent for outaged
+            'outaged': 'rgba(256, 256, 256, 0.75)',     # Gray/translucent for outaged
             'overloaded': 'rgba(255, 0, 60, 0.6)',     # Bright red for overloaded
             'high_stress': 'rgba(255, 120, 0, 0.5)',   # Orange for high stress
             'affected': 'rgba(255, 204, 0, 0.4)',      # Yellow for affected
