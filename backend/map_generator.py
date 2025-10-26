@@ -172,24 +172,35 @@ class GridMapGenerator:
                     # Build hover text with real-time data
                     if rating:
                         line_info = (
-                            f"<b>{feature['properties']['LineName']}</b><br>"
-                            f"<b style='color: {stress_colors[stress_level].replace('0.85', '1.0')}'>Loading: {rating['loading_pct']:.1f}%</b><br>"
-                            f"Rating: {rating['rating_mva']:.1f} MVA<br>"
-                            f"Flow: {rating['flow_mva']:.1f} MVA<br>"
-                            f"Margin: {rating['margin_mva']:.1f} MVA<br>"
-                            f"Voltage: {rating['voltage_kv']} kV<br>"
-                            f"Conductor: {rating['conductor']}<br>"
-                            f"From: {feature['properties']['BusNameFrom']}<br>"
-                            f"To: {feature['properties']['BusNameTo']}"
+                            f"<b style='font-size: 15px'>{feature['properties']['LineName']}</b><br>"
+                            f"<br>"
+                            f"<b style='color: {stress_colors[stress_level].replace('0.85', '1.0')}; font-size: 15px'>⚡ Loading: {rating['loading_pct']:.1f}%</b><br>"
+                            f"<br>"
+                            f"<b>Power Flow:</b><br>"
+                            f"  • Flow: {rating['flow_mva']:.1f} MVA<br>"
+                            f"  • Rating: {rating['rating_mva']:.1f} MVA<br>"
+                            f"  • Margin: {rating['margin_mva']:.1f} MVA<br>"
+                            f"<br>"
+                            f"<b>Line Details:</b><br>"
+                            f"  • Voltage: {rating['voltage_kv']} kV<br>"
+                            f"  • Conductor: {rating['conductor']}<br>"
+                            f"<br>"
+                            f"<b>Connection:</b><br>"
+                            f"  From: {feature['properties']['BusNameFrom']}<br>"
+                            f"  To: {feature['properties']['BusNameTo']}"
                             f"{midpoint_text}"
                         )
                     else:
                         line_info = (
-                            f"<b>{feature['properties']['LineName']}</b><br>"
-                            f"Voltage: {feature['properties']['nomkv']} kV<br>"
-                            f"Circuit: {feature['properties']['Circuit']}<br>"
-                            f"From: {feature['properties']['BusNameFrom']}<br>"
-                            f"To: {feature['properties']['BusNameTo']}"
+                            f"<b style='font-size: 15px'>{feature['properties']['LineName']}</b><br>"
+                            f"<br>"
+                            f"<b>Line Details:</b><br>"
+                            f"  • Voltage: {feature['properties']['nomkv']} kV<br>"
+                            f"  • Circuit: {feature['properties']['Circuit']}<br>"
+                            f"<br>"
+                            f"<b>Connection:</b><br>"
+                            f"  From: {feature['properties']['BusNameFrom']}<br>"
+                            f"  To: {feature['properties']['BusNameTo']}"
                             f"{midpoint_text}"
                         )
 
@@ -251,6 +262,14 @@ class GridMapGenerator:
             height=None,  # Auto height
             autosize=True,  # Auto resize
             hovermode='closest',
+            hoverlabel=dict(
+                bgcolor='rgba(15, 15, 17, 0.95)',
+                font_size=14,
+                font_family='-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif',
+                font_color='#ffffff',
+                bordercolor='rgba(255, 255, 255, 0.2)',
+                align='left'
+            ),
             legend=dict(
                 orientation='h',
                 yanchor='bottom',
@@ -303,7 +322,7 @@ class GridMapGenerator:
             /* Custom zoom controls */
             .custom-zoom-controls {
                 position: fixed;
-                bottom: 20px;
+                top: 20px;
                 left: 20px;
                 z-index: 1000;
                 display: flex;
@@ -469,11 +488,15 @@ class GridMapGenerator:
                 if line_data:
                     if status == 'outaged':
                         line_info = (
-                            f"<b style='color: #888'>{feature['properties']['LineName']}</b><br>"
-                            f"<b style='color: #ff3c3c'>STATUS: OUTAGED ⚠️</b><br>"
-                            f"Line removed from service<br>"
-                            f"From: {feature['properties']['BusNameFrom']}<br>"
-                            f"To: {feature['properties']['BusNameTo']}"
+                            f"<b style='font-size: 15px; color: #888'>{feature['properties']['LineName']}</b><br>"
+                            f"<br>"
+                            f"<b style='color: #ff3c3c; font-size: 15px'>⚠️ STATUS: OUTAGED</b><br>"
+                            f"<br>"
+                            f"<b>Status:</b> Line removed from service<br>"
+                            f"<br>"
+                            f"<b>Connection:</b><br>"
+                            f"  From: {feature['properties']['BusNameFrom']}<br>"
+                            f"  To: {feature['properties']['BusNameTo']}"
                             f"{midpoint_text}"
                         )
                     else:
@@ -484,22 +507,34 @@ class GridMapGenerator:
                         status_color = stress_colors[status].replace('0.6', '1.0').replace('0.5', '1.0').replace('0.4', '1.0')
 
                         line_info = (
-                            f"<b>{feature['properties']['LineName']}</b><br>"
-                            f"<b style='color: {status_color}'>Loading: {line_data['loading_pct']:.1f}%</b><br>"
+                            f"<b style='font-size: 15px'>{feature['properties']['LineName']}</b><br>"
+                            f"<br>"
+                            f"<b style='color: {status_color}; font-size: 15px'>⚡ Loading: {line_data['loading_pct']:.1f}%</b><br>"
                             f"<b style='color: {change_color}'>Change: {change_arrow} {abs(line_data.get('loading_change_pct', 0)):.1f}%</b><br>"
-                            f"Baseline: {line_data.get('baseline_loading_pct', 0):.1f}%<br>"
-                            f"Flow: {line_data.get('flow_mva', 0):.1f} MVA<br>"
-                            f"Capacity: {line_data.get('s_nom', 0):.1f} MVA<br>"
-                            f"From: {feature['properties']['BusNameFrom']}<br>"
-                            f"To: {feature['properties']['BusNameTo']}"
+                            f"<br>"
+                            f"<b>Comparison:</b><br>"
+                            f"  • Baseline: {line_data.get('baseline_loading_pct', 0):.1f}%<br>"
+                            f"  • Current: {line_data['loading_pct']:.1f}%<br>"
+                            f"<br>"
+                            f"<b>Power Flow:</b><br>"
+                            f"  • Flow: {line_data.get('flow_mva', 0):.1f} MVA<br>"
+                            f"  • Capacity: {line_data.get('s_nom', 0):.1f} MVA<br>"
+                            f"<br>"
+                            f"<b>Connection:</b><br>"
+                            f"  From: {feature['properties']['BusNameFrom']}<br>"
+                            f"  To: {feature['properties']['BusNameTo']}"
                             f"{midpoint_text}"
                         )
                 else:
                     line_info = (
-                        f"<b>{feature['properties']['LineName']}</b><br>"
-                        f"Voltage: {feature['properties']['nomkv']} kV<br>"
-                        f"From: {feature['properties']['BusNameFrom']}<br>"
-                        f"To: {feature['properties']['BusNameTo']}"
+                        f"<b style='font-size: 15px'>{feature['properties']['LineName']}</b><br>"
+                        f"<br>"
+                        f"<b>Line Details:</b><br>"
+                        f"  • Voltage: {feature['properties']['nomkv']} kV<br>"
+                        f"<br>"
+                        f"<b>Connection:</b><br>"
+                        f"  From: {feature['properties']['BusNameFrom']}<br>"
+                        f"  To: {feature['properties']['BusNameTo']}"
                         f"{midpoint_text}"
                     )
 
@@ -509,9 +544,8 @@ class GridMapGenerator:
                     color=stress_colors[status]
                 )
 
-                if status == 'outaged':
-                    # Dashed line for outaged
-                    line_style['dash'] = 'dash'
+                # Note: Scattermapbox does not support 'dash' property for lines
+                # Outaged lines are shown with different color and width instead
 
                 fig.add_trace(go.Scattermapbox(
                     lon=lons,
@@ -537,6 +571,14 @@ class GridMapGenerator:
             height=None,
             autosize=True,
             hovermode='closest',
+            hoverlabel=dict(
+                bgcolor='rgba(15, 15, 17, 0.95)',
+                font_size=14,
+                font_family='-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif',
+                font_color='#ffffff',
+                bordercolor='rgba(255, 255, 255, 0.2)',
+                align='left'
+            ),
             legend=dict(
                 orientation='h',
                 yanchor='bottom',

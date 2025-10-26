@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:5000/api'
+const API_BASE = 'http://localhost:5001/api'
 
 export interface WeatherParams {
   ambient_temp: number      // Ta: Ambient temperature (°C) - Range: -20 to 50

@@ -74,7 +74,7 @@ export default function Chatbot({ weather, inSidebar = false }: ChatbotProps) {
     setShowSuggestions(false);
 
     try {
-      const response = await fetch("http://localhost:5000/api/chatbot", {
+      const response = await fetch("http://localhost:5001/api/chatbot", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

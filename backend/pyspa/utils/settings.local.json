@@ -1,6 +1,7 @@
 {
   "permissions": {
     "allow": [
+<<<<<<< HEAD
       "Bash(python test_csv_loading.py:*)",
       "Bash(python -c:*)",
       "Bash(python test_nan_fix.py:*)",
@@ -17,6 +18,11 @@
       "Bash(python:*)",
       "Bash(dir:*)",
       "Bash(findstr:*)"
+=======
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(rm:*)"
+>>>>>>> parent of 18331c0 (hi)
     ],
     "deny": [],
     "ask": []

@@ -34,13 +34,43 @@ const WeatherAnalysis: React.FC<WeatherAnalysisProps> = ({
   const [baselineRatings, setBaselineRatings] = useState<RatingResponse | null>(null)
   const [comparison, setComparison] = useState<ComparisonData | null>(null)
   const [loadingComparison, setLoadingComparison] = useState(false)
+  const [baselineWeather] = useState<WeatherParams>({
+    ambient_temp: 25,
+    wind_speed: 2.0,
+    wind_angle: 90,
+    sun_time: 12,
+    date: "12 Jun",
+    elevation: 1000,
+    latitude: 27,
+    emissivity: 0.8,
+    absorptivity: 0.8,
+    direction: "EastWest",
+    atmosphere: "Clear",
+  })
 
-  // Store initial ratings as baseline
+  // Store initial ratings as baseline ONLY if weather matches baseline conditions
   useEffect(() => {
     if (ratings && !baselineRatings) {
-      setBaselineRatings(ratings)
+      // Check if current weather matches baseline weather (within tolerance)
+      const isBaselineWeather =
+        Math.abs(weather.ambient_temp - baselineWeather.ambient_temp) < 0.1 &&
+        Math.abs(weather.wind_speed - baselineWeather.wind_speed) < 0.1 &&
+        weather.wind_angle === baselineWeather.wind_angle &&
+        weather.sun_time === baselineWeather.sun_time
+
+      if (isBaselineWeather) {
+        console.log('[WeatherAnalysis] Setting baseline ratings from default weather conditions')
+        setBaselineRatings(ratings)
+      }
     }
-  }, [ratings])
+  }, [ratings, baselineWeather])
+
+  // Auto-update comparison when ratings change and comparison is visible
+  useEffect(() => {
+    if (showComparison && baselineRatings && ratings) {
+      calculateComparison()
+    }
+  }, [ratings, showComparison])
 
   const calculateComparison = () => {
     if (!baselineRatings || !ratings) return
@@ -72,6 +102,11 @@ const WeatherAnalysis: React.FC<WeatherAnalysisProps> = ({
 
   const handleCompareToggle = async () => {
     if (!showComparison) {
+      if (!baselineRatings) {
+        // If no baseline exists, prompt user to reset to baseline first
+        alert('Please reset weather to baseline conditions first to establish a comparison baseline.')
+        return
+      }
       setLoadingComparison(true)
       // Ensure we have current ratings
       await new Promise(resolve => setTimeout(resolve, 100))
@@ -79,6 +114,11 @@ const WeatherAnalysis: React.FC<WeatherAnalysisProps> = ({
       setLoadingComparison(false)
     }
     setShowComparison(!showComparison)
+  }
+
+  const handleResetToBaseline = () => {
+    console.log('[WeatherAnalysis] Resetting to baseline weather conditions')
+    onWeatherChange(baselineWeather)
   }
 
   const renderMetricChange = (value: number, suffix: string = '', decimals: number = 1) => {
@@ -102,6 +142,47 @@ const WeatherAnalysis: React.FC<WeatherAnalysisProps> = ({
       height: '100%',
       overflow: 'hidden'
     }}>
+      {/* Baseline Status Indicator */}
+      {!baselineRatings && (
+        <div style={{
+          background: 'rgba(234, 179, 8, 0.15)',
+          border: '1px solid rgba(234, 179, 8, 0.4)',
+          borderRadius: '8px',
+          padding: '0.75rem',
+          fontSize: '0.875rem',
+          color: '#eab308',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          flexShrink: 0
+        }}>
+          <AlertTriangle size={16} />
+          <span>
+            <strong>No baseline established.</strong> Click "Reset to Defaults" to establish baseline conditions for comparison.
+          </span>
+        </div>
+      )}
+
+      {baselineRatings && (
+        <div style={{
+          background: 'rgba(16, 185, 129, 0.15)',
+          border: '1px solid rgba(16, 185, 129, 0.4)',
+          borderRadius: '8px',
+          padding: '0.75rem',
+          fontSize: '0.875rem',
+          color: '#10b981',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          flexShrink: 0
+        }}>
+          <CheckCircle size={16} />
+          <span>
+            Baseline established at {baselineRatings.weather.ambient_temp}°C, {baselineRatings.weather.wind_speed}ft/s wind
+          </span>
+        </div>
+      )}
+
       {/* Weather Controls */}
       <div style={{ flexShrink: 0, maxHeight: '60vh', overflowY: 'auto' }}>
         <WeatherControlsAdvanced

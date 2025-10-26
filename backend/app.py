@@ -1,47 +1,6 @@
 """
 Flask API server for Grid Real-Time Rating Analysis System
 """
-
-def load_required_data():
-    """
-    Load required data files and verify they are accessible
-    Returns True if successful, False if data loading failed
-    """
-    try:
-        # Verify GeoJSON files are loaded
-        if not data_loader.lines_geojson:
-            logger.info("Loading line GeoJSON data...")
-            data_loader.reload_data()
-            if not data_loader.lines_geojson:
-                logger.error("Failed to load line GeoJSON data")
-                return False
-        else:
-            logger.debug("Line GeoJSON data already loaded")
-
-        if not data_loader.buses_geojson:
-            logger.info("Loading bus GeoJSON data...")
-            data_loader.reload_data()
-            if not data_loader.buses_geojson:
-                logger.error("Failed to load bus GeoJSON data")
-                return False
-        else:
-            logger.debug("Bus GeoJSON data already loaded")
-
-        # Verify map generator has data
-        if not map_generator.lines_geojson:
-            logger.info("Reloading map generator data...")
-            map_generator.lines_geojson = data_loader.get_lines_geojson()
-            if not map_generator.lines_geojson:
-                logger.error("Failed to load map generator GeoJSON data")
-                return False
-        else:
-            logger.debug("Map generator data already loaded")
-
-        return True
-
-    except Exception as e:
-        logger.error(f"Error loading required data: {str(e)}")
-        return False
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import pandas as pd
@@ -110,6 +69,47 @@ CORS(app)
 data_loader = DataLoader()
 calculator = RatingCalculator(data_loader)
 map_generator = GridMapGenerator(data_loader)
+
+def load_required_data():
+    """
+    Load required data files and verify they are accessible
+    Returns True if successful, False if data loading failed
+    """
+    try:
+        # Verify GeoJSON files are loaded
+        if not data_loader.lines_geojson:
+            logger.info("Loading line GeoJSON data...")
+            data_loader.reload_data()
+            if not data_loader.lines_geojson:
+                logger.error("Failed to load line GeoJSON data")
+                return False
+        else:
+            logger.debug("Line GeoJSON data already loaded")
+
+        if not data_loader.buses_geojson:
+            logger.info("Loading bus GeoJSON data...")
+            data_loader.reload_data()
+            if not data_loader.buses_geojson:
+                logger.error("Failed to load bus GeoJSON data")
+                return False
+        else:
+            logger.debug("Bus GeoJSON data already loaded")
+
+        # Verify map generator has data
+        if not map_generator.lines_geojson:
+            logger.info("Reloading map generator data...")
+            map_generator.lines_geojson = data_loader.get_lines_geojson()
+            if not map_generator.lines_geojson:
+                logger.error("Failed to load map generator GeoJSON data")
+                return False
+        else:
+            logger.debug("Map generator data already loaded")
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Error loading required data: {str(e)}")
+        return False
 
 # Initialize AI chatbot service
 try:
@@ -1022,4 +1022,4 @@ def get_load_profile():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5001)

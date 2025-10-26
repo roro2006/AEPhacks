@@ -74,7 +74,7 @@ function App() {
       setError(
         err instanceof Error
           ? err.message
-          : "Failed to load ratings. Make sure backend is running on http://localhost:5000"
+          : "Failed to load ratings. Make sure backend is running on http://localhost:5001"
       );
     } finally {
       setLoading(false);

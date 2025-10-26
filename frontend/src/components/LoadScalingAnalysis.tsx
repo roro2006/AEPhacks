@@ -55,7 +55,7 @@ const LoadScalingAnalysis = () => {
     setError(null)
 
     try {
-      const response = await fetch('http://localhost:5000/api/load-scaling/daily?hours=24')
+      const response = await fetch('http://localhost:5001/api/load-scaling/daily?hours=24')
 
       if (!response.ok) {
         throw new Error(`API error: ${response.statusText}`)
