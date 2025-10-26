@@ -116,7 +116,7 @@ function App() {
             onClick={() => setActiveTab("chat")}
           >
             <MessageCircle size={18} />
-            AI Chat
+            Chat
           </button>
         </div>
 

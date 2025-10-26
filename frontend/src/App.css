@@ -79,8 +79,10 @@ body {
 
 /* Header Tabs — subtle glow on hover */
 .header-tabs {
-  display: flex;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+
+  gap: 0.2rem;
 }
 
 .tab-button {
@@ -119,7 +121,7 @@ body {
   position: fixed;
   top: 2rem;
   right: 2rem;
-  width: 400px;
+  width: 450px;
   max-height: calc(100vh - 4rem);
   display: flex;
   flex-direction: column;
