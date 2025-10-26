@@ -62,8 +62,8 @@ network.loads_t['p'].sum(axis=1)
 import matplotlib.pyplot as plt
 import numpy as np
 
-x = np.arange(24)
-f = 1/24
+x = np.arange(36)
+f = 1/36
 offset = 1136
 A = 100
 C = 2*np.pi/2

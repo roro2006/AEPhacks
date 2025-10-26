@@ -13,6 +13,7 @@ import Chatbot from "./components/Chatbot";
 import NetworkMap from "./components/NetworkMap";
 import OutageAnalysis from "./components/OutageAnalysis";
 import WeatherAnalysis from "./components/WeatherAnalysis";
+import LoadScalingAnalysis from "./components/LoadScalingAnalysis";
 
 type ViewTab = "map" | "table" | "analysis" | "chat";
 type FilterType = "all" | "critical" | "high" | "caution" | "normal" | "az" | "za";
@@ -21,7 +22,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<ViewTab>("map");
   const [filter, setFilter] = useState<FilterType>("all");
   const [selectedLine, setSelectedLine] = useState<string | null>(null);
-  const [analysisSubTab, setAnalysisSubTab] = useState<'weather' | 'outage'>('weather');
+  const [analysisSubTab, setAnalysisSubTab] = useState<'weather' | 'outage' | 'loading'>('weather');
   const [weather, setWeather] = useState<WeatherParams>({
     ambient_temp: 25,
     wind_speed: 2.0,
@@ -346,6 +347,22 @@ function App() {
               >
                 Outage Simulation
               </button>
+              <button
+                onClick={() => setAnalysisSubTab('loading')}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: analysisSubTab === 'loading' ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                  border: analysisSubTab === 'loading' ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '6px',
+                  color: analysisSubTab === 'loading' ? '#60a5fa' : '#9ca3af',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Daily Load Scaling
+              </button>
             </div>
 
             {/* Sub-tab Content */}
@@ -360,6 +377,9 @@ function App() {
               )}
               {analysisSubTab === 'outage' && (
                 <OutageAnalysis onOutageComplete={setOutageResult} />
+              )}
+              {analysisSubTab === 'loading' && (
+                <LoadScalingAnalysis />
               )}
             </div>
           </div>

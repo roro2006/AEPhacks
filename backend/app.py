@@ -889,5 +889,137 @@ def generate_outage_map():
             "tip": "Server encountered an error processing the request"
         }), 500
 
+@app.route('/api/load-scaling/daily', methods=['GET'])
+def analyze_daily_load_scaling():
+    """
+    Analyze transmission system stress throughout a 24-hour period
+    with varying load/generation levels.
+
+    Query parameters:
+        hours: Number of hours to analyze (default 24)
+
+    Returns:
+        JSON with hourly analysis results and summary
+    """
+    try:
+        from load_scaling_analyzer import LoadScalingAnalyzer
+
+        hours = request.args.get('hours', 24, type=int)
+
+        if hours < 1 or hours > 48:
+            return jsonify({
+                "success": False,
+                "error": "Hours must be between 1 and 48"
+            }), 400
+
+        logger.info(f"Analyzing daily load scaling for {hours} hours...")
+
+        # Initialize analyzer
+        analyzer = LoadScalingAnalyzer()
+
+        # Run daily analysis
+        result = analyzer.analyze_daily_profile(hours)
+
+        # Clean NaN values
+        result_clean = clean_nan_values(result)
+
+        logger.info(f"Daily load scaling analysis complete: {result_clean['summary']['hours_converged']}/{hours} hours converged")
+
+        return jsonify(result_clean)
+
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "trace": traceback.format_exc()
+        }), 500
+
+
+@app.route('/api/load-scaling/hour/<int:hour>', methods=['GET'])
+def analyze_single_hour_loading(hour):
+    """
+    Analyze transmission system at a specific hour of the day.
+
+    Path parameter:
+        hour: Hour of day (0-23)
+
+    Returns:
+        JSON with analysis results for the specified hour
+    """
+    try:
+        from load_scaling_analyzer import LoadScalingAnalyzer
+
+        if hour < 0 or hour >= 24:
+            return jsonify({
+                "success": False,
+                "error": f"Invalid hour: {hour}. Must be 0-23."
+            }), 400
+
+        logger.info(f"Analyzing load scaling for hour {hour}...")
+
+        # Initialize analyzer
+        analyzer = LoadScalingAnalyzer()
+
+        # Analyze single hour
+        result = analyzer.analyze_single_hour(hour)
+
+        # Clean NaN values
+        result_clean = clean_nan_values(result)
+
+        return jsonify(result_clean)
+
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "trace": traceback.format_exc()
+        }), 500
+
+
+@app.route('/api/load-scaling/profile', methods=['GET'])
+def get_load_profile():
+    """
+    Get the daily load profile without running full analysis.
+
+    Query parameters:
+        hours: Number of hours (default 24)
+
+    Returns:
+        JSON with load profile data points
+    """
+    try:
+        from load_scaling_analyzer import LoadScalingAnalyzer
+
+        hours = request.args.get('hours', 24, type=int)
+
+        if hours < 1 or hours > 48:
+            return jsonify({
+                "success": False,
+                "error": "Hours must be between 1 and 48"
+            }), 400
+
+        # Initialize analyzer
+        analyzer = LoadScalingAnalyzer()
+
+        # Get profile
+        profile = analyzer.get_load_profile(hours)
+
+        return jsonify({
+            "success": True,
+            "hours": hours,
+            "profile": profile
+        })
+
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "trace": traceback.format_exc()
+        }), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
