@@ -4,21 +4,51 @@ Flask API server for Grid Real-Time Rating Analysis System
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import pandas as pd
+import numpy as np
 import json
-import sys
-import os
+import logging
 
-# Add ieee738 to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'osu_hackathon', 'ieee738'))
-import ieee738
-from ieee738 import ConductorParams
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 from rating_calculator import RatingCalculator
 from data_loader import DataLoader
 from map_generator import GridMapGenerator
 from chatbot_service import GridChatbotService
 
+# Custom JSON encoder to handle NaN values
+class NanSafeJSONEncoder(json.JSONEncoder):
+    """JSON encoder that converts NaN to null"""
+    def default(self, obj):
+        if isinstance(obj, float):
+            if np.isnan(obj) or np.isinf(obj):
+                return None
+        return super().default(obj)
+
+def clean_nan_values(obj):
+    """
+    Recursively replace NaN values with None in nested dictionaries/lists
+
+    Args:
+        obj: Object to clean (dict, list, or primitive)
+
+    Returns:
+        Cleaned object with NaN replaced by None
+    """
+    if isinstance(obj, dict):
+        return {k: clean_nan_values(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [clean_nan_values(item) for item in obj]
+    elif isinstance(obj, float):
+        if pd.isna(obj) or np.isnan(obj) or np.isinf(obj):
+            return None
+        return obj
+    else:
+        return obj
+
 app = Flask(__name__)
+app.json_encoder = NanSafeJSONEncoder
 CORS(app)
 
 # Initialize data loader and calculator
@@ -88,11 +118,14 @@ def calculate_ratings():
         # Calculate ratings for all lines
         results = calculator.calculate_all_line_ratings(weather_params)
 
-        return jsonify({
+        # Clean NaN values before sending to frontend
+        response_data = {
             "weather": weather_params,
-            "lines": results['lines'],
-            "summary": results['summary']
-        })
+            "lines": clean_nan_values(results['lines']),
+            "summary": clean_nan_values(results['summary'])
+        }
+
+        return jsonify(response_data)
 
     except Exception as e:
         import traceback
@@ -345,11 +378,14 @@ def generate_map():
         # Generate map HTML
         map_html = map_generator.generate_interactive_map(weather_params, results)
 
-        return jsonify({
+        # Clean NaN values before sending to frontend
+        response_data = {
             "map_html": map_html,
-            "summary": results['summary'],
+            "summary": clean_nan_values(results['summary']),
             "weather": weather_params
-        })
+        }
+
+        return jsonify(response_data)
 
     except Exception as e:
         import traceback

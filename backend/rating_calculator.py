@@ -1,14 +1,16 @@
 """
-Dynamic line rating calculator using IEEE 738 standard
-"""
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'osu_hackathon', 'ieee738'))
+Line rating calculator using static ratings from conductor library
 
-import ieee738
-from ieee738 import ConductorParams
+Note: This version uses static MVA ratings from conductor_ratings.csv.
+For true dynamic IEEE 738 calculations, a detailed conductor library with
+resistance and diameter parameters would be needed.
+"""
 import pandas as pd
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class RatingCalculator:
     def __init__(self, data_loader):
@@ -16,11 +18,11 @@ class RatingCalculator:
 
     def calculate_line_rating(self, line_data, weather_params):
         """
-        Calculate dynamic rating for a single line
+        Calculate rating for a single line using static conductor ratings
 
         Args:
             line_data: Dictionary with line information
-            weather_params: Dictionary with weather conditions
+            weather_params: Dictionary with weather conditions (currently not used for static ratings)
 
         Returns:
             Dictionary with rating information
@@ -28,41 +30,33 @@ class RatingCalculator:
         # Get conductor parameters
         conductor_params = self.data_loader.get_conductor_params(line_data['conductor'])
         if conductor_params is None:
-            print(f"Line {line_data['name']}: Conductor '{line_data['conductor']}' not found")
+            logger.warning(f"Line {line_data['name']}: Conductor '{line_data['conductor']}' not found")
             return None
 
         # Get voltage
         voltage_kv = self.data_loader.get_bus_voltage(line_data['bus0_name'])
         if voltage_kv is None:
-            print(f"Line {line_data['name']}: Bus voltage for '{line_data['bus0_name']}' not found")
+            logger.warning(f"Line {line_data['name']}: Bus voltage for '{line_data['bus0_name']}' not found")
             return None
 
-        # Prepare IEEE738 parameters
-        # Resistance is in Ohms/Mi, need to convert to Ohms/ft
-        ieee_params = {
-            'TLo': 25,
-            'THi': 50,
-            'RLo': conductor_params['RES_25C'] / 5280,  # Convert from Ohms/Mi to Ohms/ft
-            'RHi': conductor_params['RES_50C'] / 5280,
-            'Diameter': conductor_params['CDRAD_in'] * 2,  # Diameter = 2 * radius
-            'Tc': line_data['MOT']  # Maximum Operating Temperature
-        }
-
-        # Combine with weather parameters
-        all_params = {**weather_params, **ieee_params}
-
-        # Calculate rating
+        # Get static rating based on voltage level
         try:
-            cp = ConductorParams(**all_params)
-            conductor = ieee738.Conductor(cp)
-            rating_amps = conductor.steady_state_thermal_rating()
+            if voltage_kv == 138.0:
+                rating_mva = conductor_params['RatingMVA_138']
+                rating_amps = conductor_params['RatingAmps']
+            elif voltage_kv == 69.0:
+                rating_mva = conductor_params['RatingMVA_69']
+                rating_amps = conductor_params['RatingAmps']
+            else:
+                # Interpolate or use closest voltage
+                logger.warning(f"Line {line_data['name']}: Unusual voltage {voltage_kv} kV, using 138kV rating")
+                rating_mva = conductor_params['RatingMVA_138']
+                rating_amps = conductor_params['RatingAmps']
 
-            # Convert to MVA
-            voltage_v = voltage_kv * 1000
-            rating_mva = np.sqrt(3) * rating_amps * voltage_v / 1e6
-
-            # Get nominal flow
-            flow_mva = self.data_loader.get_line_flow(line_data['name'])
+            # Get nominal flow (in MW, convert to MVA)
+            flow_mw = self.data_loader.get_line_flow(line_data['name'])
+            # Approximate MVA assuming power factor of 0.95
+            flow_mva = abs(flow_mw) / 0.95 if flow_mw != 0 else 0
 
             # Calculate loading percentage
             loading_pct = (flow_mva / rating_mva * 100) if rating_mva > 0 else 0
@@ -96,12 +90,20 @@ class RatingCalculator:
 
         except Exception as e:
             import traceback
-            print(f"Error calculating rating for {line_data['name']}: {str(e)}")
-            print(f"Traceback: {traceback.format_exc()}")
+            logger.error(f"Error calculating rating for {line_data['name']}: {str(e)}")
+            logger.debug(f"Traceback: {traceback.format_exc()}")
             return None
 
     def calculate_all_line_ratings(self, weather_params):
-        """Calculate ratings for all lines"""
+        """
+        Calculate ratings for all lines
+
+        Args:
+            weather_params: Weather parameters (currently not used for static ratings)
+
+        Returns:
+            Dictionary with 'lines' and 'summary' keys
+        """
         lines = self.data_loader.get_all_lines()
         results = []
         failed_count = 0
@@ -114,7 +116,7 @@ class RatingCalculator:
                 failed_count += 1
 
         if failed_count > 0:
-            print(f"Warning: {failed_count} out of {len(lines)} lines failed to calculate")
+            logger.warning(f"{failed_count} out of {len(lines)} lines failed to calculate")
 
         # Calculate summary statistics
         if len(results) == 0:

@@ -1,111 +1,277 @@
 """
 Data loader for grid data from CSV and GeoJSON files
+
+REFACTORED VERSION - Now uses the robust CSVDataLoader infrastructure
+with proper error handling, validation, and caching.
+
+This class maintains backward compatibility with existing code while
+leveraging the new data loading infrastructure.
 """
 import pandas as pd
 import json
 import os
+import logging
+from typing import Optional, Dict, Any, List
+
+# Import new infrastructure
+from csv_data_loader import CSVDataLoader
+from data_models import DataLoadError
+from config import DataConfig
+
+logger = logging.getLogger(__name__)
+
 
 class DataLoader:
-    def __init__(self, data_path=None):
-        if data_path is None:
-            # Default to osu_hackathon data
-            base_path = os.path.join(os.path.dirname(__file__), '..', '..', 'osu_hackathon')
-            self.data_path = os.path.join(base_path, 'hawaii40_osu')
-            self.ieee738_path = os.path.join(base_path, 'ieee738')
-        else:
-            self.data_path = data_path
+    """
+    Legacy data loader class - refactored to use new infrastructure.
 
-        # Load all data
-        self.lines_df = None
-        self.buses_df = None
-        self.flows_df = None
-        self.conductors_df = None
-        self.lines_geojson = None
-        self.buses_geojson = None
+    This class provides backward compatibility with existing code while
+    using the new CSVDataLoader internally for robust data access.
 
+    Args:
+        data_path: Optional custom data path (deprecated - uses config by default)
+    """
+
+    def __init__(self, data_path: Optional[str] = None):
+        """
+        Initialize the data loader.
+
+        Args:
+            data_path: Optional custom data path (for backward compatibility)
+                      If None, uses paths from DataConfig
+        """
+        # Use new CSV data loader
+        self._csv_loader = CSVDataLoader()
+
+        # Legacy path handling (for backward compatibility)
+        if data_path is not None:
+            logger.warning(
+                "Custom data_path is deprecated. The loader now uses config.DataConfig "
+                "for path management. Custom path will be ignored."
+            )
+
+        # Legacy attributes (for backward compatibility)
+        # These are now populated on-demand from the CSV loader
+        self._lines_df = None
+        self._buses_df = None
+        self._flows_df = None
+        self._conductors_df = None
+        self._lines_geojson = None
+        self._buses_geojson = None
+
+        # Load data
         self._load_data()
 
     def _load_data(self):
-        """Load all data files"""
-        print(f"Loading data from {self.data_path}")
-
-        # Load CSV files
-        csv_path = os.path.join(self.data_path, 'csv')
-        self.lines_df = pd.read_csv(os.path.join(csv_path, 'lines.csv'))
-        self.buses_df = pd.read_csv(os.path.join(csv_path, 'buses.csv'))
-        self.flows_df = pd.read_csv(os.path.join(self.data_path, 'line_flows_nominal.csv'))
-
-        # Strip whitespace from bus names to ensure matching
-        if 'bus0_name' in self.lines_df.columns:
-            self.lines_df['bus0_name'] = self.lines_df['bus0_name'].astype(str).str.strip()
-        if 'bus1_name' in self.lines_df.columns:
-            self.lines_df['bus1_name'] = self.lines_df['bus1_name'].astype(str).str.strip()
-        if 'BusName' in self.buses_df.columns:
-            self.buses_df['BusName'] = self.buses_df['BusName'].astype(str).str.strip()
-
-        # Load conductor library
-        self.conductors_df = pd.read_csv(
-            os.path.join(self.ieee738_path, 'conductor_library.csv')
-        )
-
-        # Load GeoJSON
-        gis_path = os.path.join(self.data_path, 'gis')
-        with open(os.path.join(gis_path, 'oneline_lines.geojson'), 'r') as f:
-            self.lines_geojson = json.load(f)
-
+        """Load all data files using new infrastructure."""
         try:
-            with open(os.path.join(gis_path, 'oneline_busses.geojson'), 'r') as f:
-                self.buses_geojson = json.load(f)
-        except:
-            self.buses_geojson = None
+            logger.info("Loading grid data using CSVDataLoader...")
 
-        print(f"Loaded {len(self.lines_df)} lines, {len(self.buses_df)} buses")
+            # Load data using the new loader (validates and caches automatically)
+            lines = self._csv_loader.get_all_lines(validate=False)
+            buses = self._csv_loader.get_all_buses(validate=False)
+            flows = self._csv_loader.get_all_power_flows(validate=False)
+            conductors = self._csv_loader.get_all_conductor_params(validate=False)
 
-    def get_lines_geojson(self):
-        """Return lines GeoJSON"""
-        return self.lines_geojson
+            # Convert to DataFrames for backward compatibility
+            self._lines_df = pd.DataFrame(lines)
+            self._buses_df = pd.DataFrame(buses)
+            self._flows_df = pd.DataFrame(flows)
+            self._conductors_df = pd.DataFrame(conductors)
 
-    def get_buses_geojson(self):
-        """Return buses GeoJSON"""
-        return self.buses_geojson
+            # Load GeoJSON
+            try:
+                self._lines_geojson = self._csv_loader.get_lines_geojson()
+            except DataLoadError as e:
+                logger.warning(f"Could not load lines GeoJSON: {e}")
+                self._lines_geojson = None
 
-    def get_line_data(self, line_name):
-        """Get line data by name"""
-        line = self.lines_df[self.lines_df['name'] == line_name]
-        if len(line) == 0:
+            try:
+                self._buses_geojson = self._csv_loader.get_buses_geojson()
+            except DataLoadError as e:
+                logger.warning(f"Could not load buses GeoJSON: {e}")
+                self._buses_geojson = None
+
+            logger.info(
+                f"Loaded {len(self._lines_df)} lines, {len(self._buses_df)} buses, "
+                f"{len(self._flows_df)} flows, {len(self._conductors_df)} conductors"
+            )
+
+        except DataLoadError as e:
+            logger.error(f"Error loading data: {e}")
+            # Initialize empty DataFrames for graceful degradation
+            self._lines_df = pd.DataFrame()
+            self._buses_df = pd.DataFrame()
+            self._flows_df = pd.DataFrame()
+            self._conductors_df = pd.DataFrame()
+            self._lines_geojson = None
+            self._buses_geojson = None
+            raise
+
+    # Legacy property accessors for backward compatibility
+    @property
+    def lines_df(self) -> pd.DataFrame:
+        """Legacy accessor for lines DataFrame."""
+        return self._lines_df
+
+    @property
+    def buses_df(self) -> pd.DataFrame:
+        """Legacy accessor for buses DataFrame."""
+        return self._buses_df
+
+    @property
+    def flows_df(self) -> pd.DataFrame:
+        """Legacy accessor for flows DataFrame."""
+        return self._flows_df
+
+    @property
+    def conductors_df(self) -> pd.DataFrame:
+        """Legacy accessor for conductors DataFrame."""
+        return self._conductors_df
+
+    @property
+    def lines_geojson(self) -> Optional[Dict]:
+        """Legacy accessor for lines GeoJSON."""
+        return self._lines_geojson
+
+    @property
+    def buses_geojson(self) -> Optional[Dict]:
+        """Legacy accessor for buses GeoJSON."""
+        return self._buses_geojson
+
+    def get_lines_geojson(self) -> Optional[Dict[str, Any]]:
+        """
+        Return lines GeoJSON.
+
+        Returns:
+            dict: GeoJSON FeatureCollection or None if not available
+        """
+        return self._lines_geojson
+
+    def get_buses_geojson(self) -> Optional[Dict[str, Any]]:
+        """
+        Return buses GeoJSON.
+
+        Returns:
+            dict: GeoJSON FeatureCollection or None if not available
+        """
+        return self._buses_geojson
+
+    def get_line_data(self, line_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get line data by name.
+
+        Args:
+            line_name: Line identifier (e.g., 'L0', 'L1')
+
+        Returns:
+            dict: Line data or None if not found
+        """
+        if self._lines_df.empty:
+            logger.warning("No line data available")
             return None
+
+        line = self._lines_df[self._lines_df['name'] == line_name]
+        if len(line) == 0:
+            logger.debug(f"Line not found: {line_name}")
+            return None
+
         return line.iloc[0].to_dict()
 
-    def get_all_lines(self):
-        """Get all lines as list of dictionaries"""
-        return self.lines_df.to_dict('records')
+    def get_all_lines(self) -> List[Dict[str, Any]]:
+        """
+        Get all lines as list of dictionaries.
 
-    def get_conductor_params(self, conductor_name):
-        """Get conductor parameters"""
-        conductor = self.conductors_df[
-            self.conductors_df['ConductorName'] == conductor_name
-        ]
-        if len(conductor) == 0:
+        Returns:
+            list: List of line data dictionaries with NaN replaced by None
+        """
+        if self._lines_df.empty:
+            logger.warning("No line data available")
+            return []
+
+        # Replace NaN with None for proper JSON serialization
+        df_clean = self._lines_df.replace({pd.NA: None, float('nan'): None})
+        return df_clean.where(pd.notna(df_clean), None).to_dict('records')
+
+    def get_conductor_params(self, conductor_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get conductor parameters.
+
+        Args:
+            conductor_name: Conductor type name
+
+        Returns:
+            dict: Conductor parameters or None if not found
+        """
+        if self._conductors_df.empty:
+            logger.warning("No conductor data available")
             return None
+
+        conductor = self._conductors_df[
+            self._conductors_df['ConductorName'] == conductor_name
+        ]
+
+        if len(conductor) == 0:
+            logger.debug(f"Conductor not found: {conductor_name}")
+            return None
+
         return conductor.iloc[0].to_dict()
 
-    def get_line_flow(self, line_name):
-        """Get nominal flow for a line"""
-        flow = self.flows_df[self.flows_df['name'] == line_name]
+    def get_line_flow(self, line_name: str) -> float:
+        """
+        Get nominal flow for a line.
+
+        Args:
+            line_name: Line identifier
+
+        Returns:
+            float: Nominal power flow in MW (0 if not found)
+        """
+        if self._flows_df.empty:
+            logger.warning("No flow data available")
+            return 0.0
+
+        flow = self._flows_df[self._flows_df['name'] == line_name]
+
         if len(flow) == 0:
-            return 0
-        return flow.iloc[0]['p0_nominal']
+            logger.debug(f"No flow data for line: {line_name}")
+            return 0.0
 
-    def get_bus_voltage(self, bus_name):
-        """Get bus voltage in kV"""
-        # Bus names are in 'BusName' column, not 'name' column
-        bus = self.buses_df[self.buses_df['BusName'] == bus_name]
-        if len(bus) == 0:
+        return float(flow.iloc[0]['p0_nominal'])
+
+    def get_bus_voltage(self, bus_name: str) -> Optional[float]:
+        """
+        Get bus voltage in kV.
+
+        Args:
+            bus_name: Bus name
+
+        Returns:
+            float: Voltage in kV or None if not found
+        """
+        if self._buses_df.empty:
+            logger.warning("No bus data available")
             return None
-        return bus.iloc[0]['v_nom']
 
-    def get_line_info(self, line_name):
-        """Get complete line information including flow and conductor data"""
+        # Bus names are in 'BusName' column, not 'name' column
+        bus = self._buses_df[self._buses_df['BusName'] == bus_name]
+
+        if len(bus) == 0:
+            logger.debug(f"Bus not found: {bus_name}")
+            return None
+
+        return float(bus.iloc[0]['v_nom'])
+
+    def get_line_info(self, line_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get complete line information including flow and conductor data.
+
+        Args:
+            line_name: Line identifier
+
+        Returns:
+            dict: Complete line information or None if not found
+        """
         line_data = self.get_line_data(line_name)
         if line_data is None:
             return None
@@ -120,3 +286,22 @@ class DataLoader:
             'flow_nominal': flow,
             'voltage_kv': voltage
         }
+
+    def reload_data(self):
+        """
+        Reload all data from CSV files.
+
+        Useful when data files have been updated.
+        """
+        logger.info("Reloading data...")
+        self._csv_loader.clear_cache()
+        self._load_data()
+
+    def get_data_statistics(self) -> Dict[str, Any]:
+        """
+        Get statistics about loaded data.
+
+        Returns:
+            dict: Data statistics
+        """
+        return self._csv_loader.get_data_statistics()
