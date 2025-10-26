@@ -406,7 +406,7 @@ class GridMapGenerator:
 
         # Color scheme based on outage stress levels
         stress_colors = {
-            'outaged': 'rgba(128, 128, 128, 0.3)',     # Gray/translucent for outaged
+            'outaged': 'rgba(256, 256, 256, 0.3)',     # Gray/translucent for outaged
             'overloaded': 'rgba(255, 0, 60, 0.6)',     # Bright red for overloaded
             'high_stress': 'rgba(255, 120, 0, 0.5)',   # Orange for high stress
             'affected': 'rgba(255, 204, 0, 0.4)',      # Yellow for affected
@@ -414,44 +414,17 @@ class GridMapGenerator:
         }
 
         # Calculate center from line coordinates
-        # Safely collect coordinates (skip malformed features)
         all_coords = []
-        for feature in self.lines_geojson.get('features', []):
-            geom = feature.get('geometry') or {}
-            coords = geom.get('coordinates') or []
-            # Some GeoJSON may use MultiLineString or nested lists, flatten one level
-            if coords and isinstance(coords[0], list) and isinstance(coords[0][0], list):
-                # flatten multiline to list of coords
-                for line in coords:
-                    for coord in line:
-                        if isinstance(coord, (list, tuple)) and len(coord) >= 2:
-                            all_coords.append(coord)
-            else:
-                for coord in coords:
-                    if isinstance(coord, (list, tuple)) and len(coord) >= 2:
-                        all_coords.append(coord)
+        for feature in self.lines_geojson['features']:
+            for coord in feature['geometry']['coordinates']:
+                all_coords.append(coord)
 
-        # Fall back to configured center if no coords available
-        if all_coords:
-            center_lon = sum(c[0] for c in all_coords) / len(all_coords)
-            center_lat = sum(c[1] for c in all_coords) / len(all_coords)
-        else:
-            # Use reasonable defaults (Hawaii-ish) instead of failing
-            center_lon = -157.95
-            center_lat = 21.4
+        center_lon = sum(c[0] for c in all_coords) / len(all_coords)
+        center_lat = sum(c[1] for c in all_coords) / len(all_coords)
 
         # Build lookup dictionaries from outage results
-        # Normalize outage result structure defensively
-        outaged_lines = set(outage_result.get('outage_lines', []) or [])
-        loading_changes = outage_result.get('loading_changes', []) or []
-        loading_dict = {}
-        for line in loading_changes:
-            # support both 'name' and 'Name' keys coming from different sources
-            key = None
-            if isinstance(line, dict):
-                key = line.get('name') or line.get('Name')
-            if key:
-                loading_dict[key] = line
+        outaged_lines = set(outage_result.get('outage_lines', []))
+        loading_dict = {line['name']: line for line in outage_result.get('loading_changes', [])}
 
         # Group lines by status
         lines_by_status = {
@@ -462,14 +435,8 @@ class GridMapGenerator:
             'normal': []
         }
 
-        for feature in self.lines_geojson.get('features', []):
-            props = feature.get('properties', {}) or {}
-            # support multiple name fields
-            line_name = props.get('Name') or props.get('name') or props.get('LineName')
-            if not line_name:
-                # skip malformed feature
-                logger.debug("Skipping feature without a valid name property")
-                continue
+        for feature in self.lines_geojson['features']:
+            line_name = feature['properties']['Name']
             line_data = loading_dict.get(line_name)
 
             if line_name in outaged_lines:
@@ -488,26 +455,9 @@ class GridMapGenerator:
             features = lines_by_status[status]
 
             for idx, (feature, line_data) in enumerate(features):
-                geom = feature.get('geometry') or {}
-                coords = geom.get('coordinates') or []
-                # Flatten coordinate arrays where necessary
-                flat_coords = []
-                if coords and isinstance(coords[0], list) and isinstance(coords[0][0], list):
-                    for line in coords:
-                        for c in line:
-                            if isinstance(c, (list, tuple)) and len(c) >= 2:
-                                flat_coords.append(c)
-                else:
-                    for c in coords:
-                        if isinstance(c, (list, tuple)) and len(c) >= 2:
-                            flat_coords.append(c)
-
-                if not flat_coords:
-                    # nothing to plot for this feature
-                    continue
-
-                lons = [c[0] for c in flat_coords]
-                lats = [c[1] for c in flat_coords]
+                coords = feature['geometry']['coordinates']
+                lons = [c[0] for c in coords]
+                lats = [c[1] for c in coords]
 
                 # Calculate midpoint
                 midpoint_coord = self.calculate_line_midpoint(coords)
@@ -554,23 +504,20 @@ class GridMapGenerator:
                     )
 
                 # Special styling for outaged lines
-                # Scattermapbox line accepts only 'width' and 'color' properties.
-                # Plotly does not support 'dash' for Scattermapbox lines; using opacity to
-                # visually de-emphasize outaged lines instead of dashed style.
                 line_style = dict(
                     width=5 if status in ['overloaded', 'high_stress'] else (2 if status == 'outaged' else 3),
                     color=stress_colors[status]
                 )
 
-                # Use lower opacity for outaged lines to make them appear faded
-                trace_opacity = 0.4 if status == 'outaged' else 1.0
+                if status == 'outaged':
+                    # Dashed line for outaged
+                    line_style['dash'] = 'dash'
 
                 fig.add_trace(go.Scattermapbox(
                     lon=lons,
                     lat=lats,
                     mode='lines',
                     line=line_style,
-                    opacity=trace_opacity,
                     hoverinfo='text',
                     hovertext=line_info,
                     name=f'{status.replace("_", " ").title()} Lines',
