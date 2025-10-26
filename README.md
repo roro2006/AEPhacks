@@ -1,6 +1,6 @@
-# Power Grid Real-Time Rating Analysis System
+# BLACKOUT by hack ops
 
-An intelligent web-based system for AEP Transmission Planners to calculate and visualize real-time power line ratings based on weather conditions. This system prevents grid overloads by dynamically tracking line capacity and identifying stress points before failures occur.
+An intelligent web-based system for transmission planners to calculate and visualize real-time power line ratings, perform contingency analysis, and predict daily load stress patterns. This system prevents grid blackouts by dynamically tracking line capacity and identifying stress points before failures occur.
 
 ![Grid Monitor Screenshot](docs/screenshot.png)
 
@@ -280,9 +280,9 @@ Loading (%) = (Flow / Rating) × 100
 
 ## Development Team
 
-Built for the **AEP Transmission Planning Hackathon**
+**BLACKOUT by hack ops** - Built for the **AEP Transmission Planning Hackathon**
 
-**Technologies**: React, TypeScript, Python, Flask, Leaflet, Recharts, IEEE 738, PyPSA
+**Technologies**: React, TypeScript, Python, Flask, Leaflet, Recharts, IEEE 738, PyPSA, Canvas API
 
 ## License
 

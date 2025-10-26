@@ -96,7 +96,7 @@ function App() {
             onClick={() => setActiveTab("map")}
           >
             <Map size={18} />
-            Controls
+            Console
           </button>
           <button
             className={`sidebar-tab ${activeTab === "table" ? "active" : ""}`}
@@ -124,11 +124,11 @@ function App() {
         {/* Tab Content */}
         {activeTab === "map" && (
           <>
-            <WeatherControls
+            {/* <WeatherControls
               weather={weather}
               onChange={handleWeatherChange}
               loading={loading}
-            />
+            /> */}
             <AlertDashboard ratings={ratings} loading={loading} />
           </>
         )}

@@ -96,9 +96,7 @@ const AlertDashboard: React.FC<AlertDashboardProps> = ({
         </div>
         <div className="stat-row">
           <span>Maximum Loading:</span>
-          <strong className={summary.max_loading >= 100 ? "text-critical" : ""}>
-            {summary.max_loading.toFixed(1)}%
-          </strong>
+            <strong>{summary.max_loading.toFixed(1)}%</strong>
         </div>
       </div>
 
