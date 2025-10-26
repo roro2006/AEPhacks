@@ -93,10 +93,10 @@ class GridMapGenerator:
 
         # Color scheme based on stress levels
         stress_colors = {
-            'normal': 'rgba(22, 163, 74, 0.85)',      # Green
-            'caution': 'rgba(202, 138, 4, 0.85)',     # Yellow/Gold
-            'high': 'rgba(234, 88, 12, 0.85)',        # Orange
-            'critical': 'rgba(220, 38, 38, 0.85)'     # Red
+            'normal': 'rgba(0, 255, 180, 0.2)',   # neon teal
+            'caution': 'rgba(255, 204, 0, 0.35)', # amber
+            'high': 'rgba(255, 80, 0, 0.45)',     # orange-red
+            'critical': 'rgba(255, 0, 60, 0.5)'   # vivid red
         }
 
         voltage_colors = {
@@ -172,9 +172,9 @@ class GridMapGenerator:
                         lat=lats,
                         mode='lines',
                         line=dict(
-                            width=3.5 if stress_level in ['high', 'critical'] else 2.5,
-                            color=stress_colors[stress_level]
-                        ),
+    width=4.5 if stress_level in ['high', 'critical'] else 3,
+    color=stress_colors[stress_level]
+),
                         hoverinfo='text',
                         hovertext=line_info,
                         name=f'{stress_level.title()} Lines',
@@ -205,7 +205,7 @@ class GridMapGenerator:
                         lon=lons,
                         lat=lats,
                         mode='lines',
-                        line=dict(width=2.5, color=color),
+                        line=dict(width=4.5, color=color),
                         hoverinfo='text',
                         hovertext=line_info,
                         name=f'{int(voltage)} kV Lines',
@@ -213,41 +213,154 @@ class GridMapGenerator:
                         legendgroup=f'{voltage}kV'
                     ))
 
-        # Layout with Apple Maps styling
+        # Layout with Apple Maps styling - full screen
         fig.update_layout(
-            title={
-                'text': f'Hawaii Electrical Network - Real-Time Status<br><sub>Temp: {weather_params["Ta"]}°C | Wind: {weather_params["WindVelocity"]} ft/s</sub>',
-                'x': 0.5,
-                'xanchor': 'center',
-                'font': {
-                    'size': 20,
-                    'color': '#1d1d1f',
-                    'family': '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif'
-                }
-            },
             mapbox=dict(
-                style='open-street-map',
+                style='carto-darkmatter',
                 center=dict(lat=center_lat, lon=center_lon),
-                zoom=10.5
+                zoom=12,
+                pitch=0,
+                bearing=0
             ),
-            height=800,
+            height=None,  # Auto height
+            autosize=True,  # Auto resize
             hovermode='closest',
             legend=dict(
                 orientation='h',
                 yanchor='bottom',
-                y=0.02,
+                y=0.01,
                 xanchor='left',
                 x=0.01,
-                bgcolor='rgba(255, 255, 255, 0.95)',
-                bordercolor='rgba(0, 0, 0, 0.1)',
-                borderwidth=1
+                bgcolor='rgba(20, 20, 20, 0.5)',
+                bordercolor='rgba(255, 255, 255, 0.05)',
+                borderwidth=1,
+                font=dict(color='#ffffff', size=12, family='-apple-system, BlinkMacSystemFont, SF Pro Text, sans-serif'),
             ),
-            margin=dict(l=0, r=0, t=80, b=0),
-            paper_bgcolor='#f5f5f7',
-            plot_bgcolor='#f5f5f7'
-        )
+            margin=dict(l=0, r=0, t=0, b=0),  # Zero margins
+            paper_bgcolor='#0b0b0d',
+            plot_bgcolor='#0b0b0d'
+        );
 
-        return fig.to_html(include_plotlyjs='cdn', div_id='grid-map')
+
+        # Generate HTML and inject custom CSS to remove all margins
+        # Enable scrollZoom and interactions
+        config = {
+            'scrollZoom': True,
+            'displayModeBar': False,  # Hide the plotly toolbar
+            'dragmode': 'pan'
+        }
+        html_str = fig.to_html(include_plotlyjs='cdn', div_id='grid-map', config=config)
+
+        # Add CSS and custom zoom controls
+        custom_css = """
+        <style>
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                overflow: hidden !important;
+            }
+            .plotly-graph-div {
+                width: 100% !important;
+                height: 100vh !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            #grid-map {
+                width: 100% !important;
+                height: 100vh !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            /* Custom zoom controls */
+            .custom-zoom-controls {
+                position: fixed;
+                bottom: 20px;
+                left: 20px;
+                z-index: 1000;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                background: rgba(20, 20, 22, 0.9);
+                backdrop-filter: blur(10px);
+                border-radius: 8px;
+                padding: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+            }
+
+            .zoom-btn {
+                width: 36px;
+                height: 36px;
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 6px;
+                color: #ffffff;
+                font-size: 20px;
+                font-weight: 600;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s;
+            }
+
+            .zoom-btn:hover {
+                background: rgba(255, 255, 255, 0.2);
+                transform: scale(1.05);
+            }
+
+            .zoom-btn:active {
+                transform: scale(0.95);
+            }
+        </style>
+        """
+
+        # Add zoom control JavaScript
+        zoom_controls = """
+        <div class="custom-zoom-controls">
+            <button class="zoom-btn" onclick="zoomIn()">+</button>
+            <button class="zoom-btn" onclick="zoomOut()">−</button>
+        </div>
+
+        <script>
+            function zoomIn() {
+                const plotDiv = document.getElementById('grid-map');
+                if (plotDiv && plotDiv.layout && plotDiv.layout.mapbox) {
+                    const currentZoom = plotDiv.layout.mapbox.zoom || 12;
+                    Plotly.relayout(plotDiv, {'mapbox.zoom': currentZoom + 0.5});
+                }
+            }
+
+            function zoomOut() {
+                const plotDiv = document.getElementById('grid-map');
+                if (plotDiv && plotDiv.layout && plotDiv.layout.mapbox) {
+                    const currentZoom = plotDiv.layout.mapbox.zoom || 12;
+                    Plotly.relayout(plotDiv, {'mapbox.zoom': Math.max(1, currentZoom - 0.5)});
+                }
+            }
+
+            // Enable scroll zoom on the map
+            document.addEventListener('DOMContentLoaded', function() {
+                const plotDiv = document.getElementById('grid-map');
+                if (plotDiv) {
+                    plotDiv.on('plotly_relayout', function(eventData) {
+                        // Allow zoom interactions
+                    });
+                }
+            });
+        </script>
+        """
+
+        # Inject CSS after the <head> tag
+        html_str = html_str.replace('<head>', '<head>' + custom_css)
+
+        # Inject zoom controls before closing body tag
+        html_str = html_str.replace('</body>', zoom_controls + '</body>')
+
+        return html_str
 
     def get_line_details_for_chat(self, line_name: str, weather_params: Dict) -> Dict:
         """Get comprehensive line details formatted for chatbot responses"""

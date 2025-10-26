@@ -3,7 +3,11 @@
     "allow": [
       "Bash(python test_csv_loading.py:*)",
       "Bash(python -c:*)",
-      "Bash(python test_nan_fix.py:*)"
+      "Bash(python test_nan_fix.py:*)",
+      "Bash(npm run dev:*)",
+      "Bash(python3:*)",
+      "Bash(source:*)",
+      "Bash(python app.py:*)"
     ],
     "deny": [],
     "ask": []

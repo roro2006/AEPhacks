@@ -1,13 +1,16 @@
-import type { RatingResponse } from '../services/api'
-import { AlertTriangle, TrendingUp, Activity, CheckCircle } from 'lucide-react'
-import './AlertDashboard.css'
+import type { RatingResponse } from "../services/api";
+import { AlertTriangle, TrendingUp, Activity, CheckCircle } from "lucide-react";
+import "./AlertDashboard.css";
 
 interface AlertDashboardProps {
-  ratings: RatingResponse | null
-  loading: boolean
+  ratings: RatingResponse | null;
+  loading: boolean;
 }
 
-const AlertDashboard: React.FC<AlertDashboardProps> = ({ ratings, loading }) => {
+const AlertDashboard: React.FC<AlertDashboardProps> = ({
+  ratings,
+  loading,
+}) => {
   if (loading) {
     return (
       <div className="alert-dashboard">
@@ -17,7 +20,7 @@ const AlertDashboard: React.FC<AlertDashboardProps> = ({ ratings, loading }) => 
         </div>
         <div className="loading-state">Calculating...</div>
       </div>
-    )
+    );
   }
 
   if (!ratings) {
@@ -29,19 +32,19 @@ const AlertDashboard: React.FC<AlertDashboardProps> = ({ ratings, loading }) => 
         </div>
         <div className="empty-state">No data available</div>
       </div>
-    )
+    );
   }
 
-  const { summary } = ratings
+  const { summary } = ratings;
 
   const getHealthStatus = () => {
-    if (summary.overloaded_lines > 0) return 'critical'
-    if (summary.high_stress_lines > 0) return 'high'
-    if (summary.caution_lines > 0) return 'caution'
-    return 'normal'
-  }
+    if (summary.overloaded_lines > 0) return "critical";
+    if (summary.high_stress_lines > 0) return "high";
+    if (summary.caution_lines > 0) return "caution";
+    return "normal";
+  };
 
-  const healthStatus = getHealthStatus()
+  const healthStatus = getHealthStatus();
 
   return (
     <div className="alert-dashboard">
@@ -55,10 +58,11 @@ const AlertDashboard: React.FC<AlertDashboardProps> = ({ ratings, loading }) => 
         <div>
           <div className="status-label">Grid Health Status</div>
           <div className="status-value">
-            {healthStatus === 'critical' && 'CRITICAL - Immediate Action Required'}
-            {healthStatus === 'high' && 'HIGH STRESS - Monitor Closely'}
-            {healthStatus === 'caution' && 'CAUTION - Watch for Changes'}
-            {healthStatus === 'normal' && 'NORMAL - All Systems Healthy'}
+            {healthStatus === "critical" &&
+              "CRITICAL - Immediate Action Required"}
+            {healthStatus === "high" && "HIGH STRESS - Monitor Closely"}
+            {healthStatus === "caution" && "CAUTION - Watch for Changes"}
+            {healthStatus === "normal" && "NORMAL - All Systems Healthy"}
           </div>
         </div>
       </div>
@@ -92,7 +96,7 @@ const AlertDashboard: React.FC<AlertDashboardProps> = ({ ratings, loading }) => 
         </div>
         <div className="stat-row">
           <span>Maximum Loading:</span>
-          <strong className={summary.max_loading >= 100 ? 'text-critical' : ''}>
+          <strong className={summary.max_loading >= 100 ? "text-critical" : ""}>
             {summary.max_loading.toFixed(1)}%
           </strong>
         </div>
@@ -114,11 +118,20 @@ const AlertDashboard: React.FC<AlertDashboardProps> = ({ ratings, loading }) => 
                   <div className="line-id">{line.name}</div>
                 </div>
                 <div className="line-stats">
-                  <div className={`loading-badge ${line.loading_pct >= 100 ? 'critical' : line.loading_pct >= 90 ? 'high' : 'caution'}`}>
+                  <div
+                    className={`loading-badge ${
+                      line.loading_pct >= 100
+                        ? "critical"
+                        : line.loading_pct >= 90
+                        ? "high"
+                        : "caution"
+                    }`}
+                  >
                     {line.loading_pct.toFixed(1)}%
                   </div>
                   <div className="margin-value">
-                    {line.margin_mva >= 0 ? '+' : ''}{line.margin_mva.toFixed(1)} MVA
+                    {line.margin_mva >= 0 ? "+" : ""}
+                    {line.margin_mva.toFixed(1)} MVA
                   </div>
                 </div>
               </div>
@@ -138,7 +151,9 @@ const AlertDashboard: React.FC<AlertDashboardProps> = ({ ratings, loading }) => 
         <div className="recommendations">
           <h3>Recommended Actions</h3>
           <ul>
-            <li>Immediately review overloaded lines for emergency interventions</li>
+            <li>
+              Immediately review overloaded lines for emergency interventions
+            </li>
             <li>Consider load shedding or generation redispatch options</li>
             <li>Prepare contingency plans for potential line outages</li>
             <li>Monitor weather forecasts for condition changes</li>
@@ -146,7 +161,7 @@ const AlertDashboard: React.FC<AlertDashboardProps> = ({ ratings, loading }) => 
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default AlertDashboard
+export default AlertDashboard;
