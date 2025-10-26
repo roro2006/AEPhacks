@@ -5,16 +5,42 @@ Generates real-time network visualization with power flow data integration
 
 import json
 import math
+import logging
 from pathlib import Path
 import pandas as pd
 import plotly.graph_objects as go
 from typing import Dict, List, Tuple, Optional
+from data_models import DataLoadError
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 class GridMapGenerator:
     def __init__(self, data_loader):
         """Initialize with DataLoader instance for accessing grid data"""
         self.data_loader = data_loader
-        self.lines_geojson = data_loader.get_lines_geojson()
+        try:
+            self.lines_geojson = data_loader.get_lines_geojson()
+            logger.info("Successfully loaded GeoJSON data with %d features", 
+                    len(self.lines_geojson.get('features', [])))
+        except DataLoadError as e:
+            logger.error("Failed to load GeoJSON data: %s", str(e))
+            self.lines_geojson = None
+        except Exception as e:
+            logger.error("Unexpected error loading GeoJSON data: %s", str(e))
+            self.lines_geojson = None
+        
+        # Try to reload if missing
+        if not self.lines_geojson:
+            try:
+                logger.info("Attempting to reload GeoJSON data...")
+                self.data_loader.reload_data()
+                self.lines_geojson = data_loader.get_lines_geojson()
+                logger.info("Successfully reloaded GeoJSON data with %d features",
+                        len(self.lines_geojson.get('features', [])))
+            except Exception as e:
+                logger.error("Failed to reload GeoJSON data: %s", str(e))
+                self.lines_geojson = None
 
     def calculate_line_midpoint(self, coords: List[List[float]]) -> Optional[List[float]]:
         """Calculate the geographic midpoint along a line string based on distance"""
@@ -359,6 +385,208 @@ class GridMapGenerator:
 
         # Inject zoom controls before closing body tag
         html_str = html_str.replace('</body>', zoom_controls + '</body>')
+
+        return html_str
+
+    def generate_outage_map(self, outage_result: Dict) -> str:
+        """
+        Generate interactive map with outage simulation results
+
+        Args:
+            outage_result: Outage simulation result from OutageSimulator
+
+        Returns:
+            HTML string of the interactive map with outage visualization
+        """
+        if not self.lines_geojson:
+            raise ValueError("No line GeoJSON data available")
+
+        # Create figure
+        fig = go.Figure()
+
+        # Color scheme based on outage stress levels
+        stress_colors = {
+            'outaged': 'rgba(128, 128, 128, 0.3)',     # Gray/translucent for outaged
+            'overloaded': 'rgba(255, 0, 60, 0.6)',     # Bright red for overloaded
+            'high_stress': 'rgba(255, 120, 0, 0.5)',   # Orange for high stress
+            'affected': 'rgba(255, 204, 0, 0.4)',      # Yellow for affected
+            'normal': 'rgba(0, 255, 180, 0.2)'         # Teal for normal
+        }
+
+        # Calculate center from line coordinates
+        all_coords = []
+        for feature in self.lines_geojson['features']:
+            for coord in feature['geometry']['coordinates']:
+                all_coords.append(coord)
+
+        center_lon = sum(c[0] for c in all_coords) / len(all_coords)
+        center_lat = sum(c[1] for c in all_coords) / len(all_coords)
+
+        # Build lookup dictionaries from outage results
+        outaged_lines = set(outage_result.get('outage_lines', []))
+        loading_dict = {line['name']: line for line in outage_result.get('loading_changes', [])}
+
+        # Group lines by status
+        lines_by_status = {
+            'outaged': [],
+            'overloaded': [],
+            'high_stress': [],
+            'affected': [],
+            'normal': []
+        }
+
+        for feature in self.lines_geojson['features']:
+            line_name = feature['properties']['Name']
+            line_data = loading_dict.get(line_name)
+
+            if line_name in outaged_lines:
+                lines_by_status['outaged'].append((feature, line_data))
+            elif line_data:
+                status = line_data.get('status', 'normal')
+                if status in lines_by_status:
+                    lines_by_status[status].append((feature, line_data))
+                else:
+                    lines_by_status['normal'].append((feature, line_data))
+            else:
+                lines_by_status['normal'].append((feature, None))
+
+        # Add lines grouped by status (outaged lines last so they appear on bottom)
+        for status in ['normal', 'affected', 'high_stress', 'overloaded', 'outaged']:
+            features = lines_by_status[status]
+
+            for idx, (feature, line_data) in enumerate(features):
+                coords = feature['geometry']['coordinates']
+                lons = [c[0] for c in coords]
+                lats = [c[1] for c in coords]
+
+                # Calculate midpoint
+                midpoint_coord = self.calculate_line_midpoint(coords)
+                midpoint_text = ""
+                if midpoint_coord:
+                    midpoint_text = f"<br>Midpoint: {midpoint_coord[1]:.6f}°N, {midpoint_coord[0]:.6f}°W"
+
+                # Build hover text with outage data
+                if line_data:
+                    if status == 'outaged':
+                        line_info = (
+                            f"<b style='color: #888'>{feature['properties']['LineName']}</b><br>"
+                            f"<b style='color: #ff3c3c'>STATUS: OUTAGED ⚠️</b><br>"
+                            f"Line removed from service<br>"
+                            f"From: {feature['properties']['BusNameFrom']}<br>"
+                            f"To: {feature['properties']['BusNameTo']}"
+                            f"{midpoint_text}"
+                        )
+                    else:
+                        change_arrow = "↑" if line_data.get('loading_change_pct', 0) > 0 else "↓"
+                        change_color = "#ff4444" if line_data.get('loading_change_pct', 0) > 0 else "#44ff44"
+
+                        # Get solid color for loading display
+                        status_color = stress_colors[status].replace('0.6', '1.0').replace('0.5', '1.0').replace('0.4', '1.0')
+
+                        line_info = (
+                            f"<b>{feature['properties']['LineName']}</b><br>"
+                            f"<b style='color: {status_color}'>Loading: {line_data['loading_pct']:.1f}%</b><br>"
+                            f"<b style='color: {change_color}'>Change: {change_arrow} {abs(line_data.get('loading_change_pct', 0)):.1f}%</b><br>"
+                            f"Baseline: {line_data.get('baseline_loading_pct', 0):.1f}%<br>"
+                            f"Flow: {line_data.get('flow_mva', 0):.1f} MVA<br>"
+                            f"Capacity: {line_data.get('s_nom', 0):.1f} MVA<br>"
+                            f"From: {feature['properties']['BusNameFrom']}<br>"
+                            f"To: {feature['properties']['BusNameTo']}"
+                            f"{midpoint_text}"
+                        )
+                else:
+                    line_info = (
+                        f"<b>{feature['properties']['LineName']}</b><br>"
+                        f"Voltage: {feature['properties']['nomkv']} kV<br>"
+                        f"From: {feature['properties']['BusNameFrom']}<br>"
+                        f"To: {feature['properties']['BusNameTo']}"
+                        f"{midpoint_text}"
+                    )
+
+                # Special styling for outaged lines
+                line_style = dict(
+                    width=5 if status in ['overloaded', 'high_stress'] else (2 if status == 'outaged' else 3),
+                    color=stress_colors[status]
+                )
+
+                if status == 'outaged':
+                    # Dashed line for outaged
+                    line_style['dash'] = 'dash'
+
+                fig.add_trace(go.Scattermapbox(
+                    lon=lons,
+                    lat=lats,
+                    mode='lines',
+                    line=line_style,
+                    hoverinfo='text',
+                    hovertext=line_info,
+                    name=f'{status.replace("_", " ").title()} Lines',
+                    showlegend=(idx == 0),
+                    legendgroup=status
+                ))
+
+        # Layout with dark map styling
+        fig.update_layout(
+            mapbox=dict(
+                style='carto-darkmatter',
+                center=dict(lat=center_lat, lon=center_lon),
+                zoom=12,
+                pitch=0,
+                bearing=0
+            ),
+            height=None,
+            autosize=True,
+            hovermode='closest',
+            legend=dict(
+                orientation='h',
+                yanchor='bottom',
+                y=0.01,
+                xanchor='left',
+                x=0.01,
+                bgcolor='rgba(20, 20, 20, 0.5)',
+                bordercolor='rgba(255, 255, 255, 0.05)',
+                borderwidth=1,
+                font=dict(color='#ffffff', size=12, family='-apple-system, BlinkMacSystemFont, SF Pro Text, sans-serif'),
+            ),
+            margin=dict(l=0, r=0, t=0, b=0),
+            paper_bgcolor='#0b0b0d',
+            plot_bgcolor='#0b0b0d'
+        )
+
+        # Generate HTML
+        config = {
+            'scrollZoom': True,
+            'displayModeBar': False,
+            'dragmode': 'pan'
+        }
+        html_str = fig.to_html(include_plotlyjs='cdn', div_id='grid-map', config=config)
+
+        # Add custom CSS (reuse from generate_interactive_map)
+        custom_css = """
+        <style>
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                overflow: hidden !important;
+            }
+            .plotly-graph-div {
+                width: 100% !important;
+                height: 100vh !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            #grid-map {
+                width: 100% !important;
+                height: 100vh !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+        </style>
+        """
+
+        html_str = html_str.replace('<head>', '<head>' + custom_css)
 
         return html_str
 

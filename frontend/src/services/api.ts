@@ -193,3 +193,126 @@ export async function fetchLineDetails(
 
   return response.json()
 }
+
+// Outage Simulation Types and Functions
+
+export interface AvailableLine {
+  name: string
+  bus0: string
+  bus1: string
+  s_nom: number
+  description: string
+}
+
+export interface AvailableLinesResponse {
+  success: boolean
+  lines: AvailableLine[]
+  total_count: number
+}
+
+export interface LineLoadingChange {
+  name: string
+  bus0: string
+  bus1: string
+  s_nom: number
+  flow_mw: number
+  flow_mva: number
+  loading_pct: number
+  baseline_loading_pct: number
+  loading_change_pct: number
+  is_active: boolean
+  is_outaged: boolean
+  status: 'outaged' | 'overloaded' | 'high_stress' | 'caution' | 'normal'
+}
+
+export interface IslandedBus {
+  bus_id: string
+  bus_name: string
+  voltage_kv: number
+  x: number
+  y: number
+}
+
+export interface OutageMetrics {
+  total_lines: number
+  outaged_lines_count: number
+  active_lines_count: number
+  overloaded_count: number
+  high_stress_count: number
+  affected_lines_count: number
+  islanded_buses_count: number
+  max_loading_pct: number
+  avg_loading_pct: number
+  max_loading_increase: number
+  baseline_max_loading: number
+  baseline_avg_loading: number
+}
+
+export interface OutageSimulationResult {
+  success: boolean
+  outage_lines: string[]
+  overloaded_lines: LineLoadingChange[]
+  high_stress_lines: LineLoadingChange[]
+  loading_changes: LineLoadingChange[]
+  islanded_buses: IslandedBus[]
+  affected_lines: LineLoadingChange[]
+  metrics: OutageMetrics
+  power_flow_info?: {
+    converged: boolean
+    max_error?: number
+    linear: boolean
+  }
+  error?: string
+}
+
+export async function fetchAvailableLines(): Promise<AvailableLinesResponse> {
+  const response = await fetch(`${API_BASE}/outage/available-lines`)
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.statusText}`)
+  }
+
+  return response.json()
+}
+
+export async function simulateOutage(
+  outageLines: string[],
+  useLpf: boolean = false
+): Promise<OutageSimulationResult> {
+  const response = await fetch(`${API_BASE}/outage/simulate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      outage_lines: outageLines,
+      use_lpf: useLpf,
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.statusText}`)
+  }
+
+  return response.json()
+}
+
+export async function fetchOutageMapHTML(
+  outageResult: OutageSimulationResult
+): Promise<MapResponse> {
+  const response = await fetch(`${API_BASE}/map/outage`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      outage_result: outageResult,
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.statusText}`)
+  }
+
+  return response.json()
+}

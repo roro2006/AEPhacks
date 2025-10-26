@@ -5,11 +5,13 @@ import {
   fetchLineRatings,
   type WeatherParams,
   type RatingResponse,
+  type OutageSimulationResult,
 } from "./services/api";
 import WeatherControls from "./components/WeatherControls-simple";
 import AlertDashboard from "./components/AlertDashboard-simple";
 import Chatbot from "./components/Chatbot";
 import NetworkMap from "./components/NetworkMap";
+import OutageAnalysis from "./components/OutageAnalysis";
 
 type ViewTab = "map" | "table" | "analysis";
 type FilterType = "all" | "critical" | "high" | "caution" | "normal" | "az" | "za";
@@ -29,6 +31,7 @@ function App() {
   const [ratings, setRatings] = useState<RatingResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [outageResult, setOutageResult] = useState<OutageSimulationResult | null>(null);
 
   useEffect(() => {
     loadRatings();
@@ -63,7 +66,7 @@ function App() {
     <div className="app-container">
       {/* Full-screen background map */}
       <div className="map-background">
-        <NetworkMap weather={weather} />
+        <NetworkMap weather={weather} outageResult={outageResult} />
       </div>
 
       {/* Error notification */}
@@ -285,117 +288,8 @@ function App() {
         )}
 
         {activeTab === "analysis" && (
-          <div className="data-table-view">
-            <div style={{ marginBottom: "1.5rem" }}>
-              <h2 style={{ fontSize: "1.25rem", margin: 0, marginBottom: "0.5rem" }}>
-                Contingency Analysis
-              </h2>
-              <p style={{ color: "#9ca3af", fontSize: "0.875rem", margin: 0 }}>
-                N-1 Contingency Analysis & Grid Stability Assessment
-              </p>
-            </div>
-
-            {/* Placeholder for Contingency Analysis Algorithm */}
-            <div style={{
-              background: "rgba(255, 255, 255, 0.05)",
-              border: "2px dashed rgba(255, 255, 255, 0.2)",
-              borderRadius: "12px",
-              padding: "2rem",
-              textAlign: "center",
-              marginBottom: "1.5rem"
-            }}>
-              <BarChart3 size={48} style={{ margin: "0 auto 1rem", color: "#9ca3af" }} />
-              <h3 style={{ fontSize: "1rem", marginBottom: "0.5rem" }}>
-                Contingency Analysis Module
-              </h3>
-              <p style={{ color: "#9ca3af", fontSize: "0.875rem", lineHeight: "1.5", marginBottom: "1rem" }}>
-                This section is ready for your partner's contingency analysis algorithm.
-                <br />
-                The component will analyze grid stability under various failure scenarios.
-              </p>
-              <div style={{
-                background: "rgba(255, 255, 255, 0.05)",
-                padding: "1rem",
-                borderRadius: "8px",
-                fontSize: "0.8125rem",
-                color: "#e5e5e7",
-                textAlign: "left",
-                maxWidth: "500px",
-                margin: "0 auto"
-              }}>
-                <div style={{ fontWeight: 600, marginBottom: "0.5rem", color: "#f5f5f7" }}>
-                  📝 Integration Guide:
-                </div>
-                <ul style={{ margin: 0, paddingLeft: "1.5rem", lineHeight: "1.8" }}>
-                  <li>Create a new component: <code style={{ background: "rgba(0,0,0,0.3)", padding: "0.125rem 0.375rem", borderRadius: "4px" }}>ContingencyAnalysis.tsx</code></li>
-                  <li>Import it in <code style={{ background: "rgba(0,0,0,0.3)", padding: "0.125rem 0.375rem", borderRadius: "4px" }}>App.tsx</code></li>
-                  <li>Replace this placeholder with your component</li>
-                  <li>Access grid data via <code style={{ background: "rgba(0,0,0,0.3)", padding: "0.125rem 0.375rem", borderRadius: "4px" }}>ratings</code> and <code style={{ background: "rgba(0,0,0,0.3)", padding: "0.125rem 0.375rem", borderRadius: "4px" }}>weather</code> props</li>
-                </ul>
-              </div>
-            </div>
-
-            {/* Example Structure - Your partner can replace this */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
-              <div style={{
-                background: "rgba(255, 255, 255, 0.05)",
-                padding: "1.25rem",
-                borderRadius: "10px",
-                border: "1px solid rgba(255, 255, 255, 0.1)"
-              }}>
-                <div style={{ fontSize: "0.75rem", color: "#9ca3af", marginBottom: "0.5rem", textTransform: "uppercase", fontWeight: 600 }}>
-                  Critical Contingencies
-                </div>
-                <div style={{ fontSize: "2rem", fontWeight: 700, color: "#ef4444" }}>
-                  --
-                </div>
-                <div style={{ fontSize: "0.75rem", color: "#9ca3af", marginTop: "0.25rem" }}>
-                  Scenarios causing overloads
-                </div>
-              </div>
-
-              <div style={{
-                background: "rgba(255, 255, 255, 0.05)",
-                padding: "1.25rem",
-                borderRadius: "10px",
-                border: "1px solid rgba(255, 255, 255, 0.1)"
-              }}>
-                <div style={{ fontSize: "0.75rem", color: "#9ca3af", marginBottom: "0.5rem", textTransform: "uppercase", fontWeight: 600 }}>
-                  Grid Stability Score
-                </div>
-                <div style={{ fontSize: "2rem", fontWeight: 700, color: "#10b981" }}>
-                  --
-                </div>
-                <div style={{ fontSize: "0.75rem", color: "#9ca3af", marginTop: "0.25rem" }}>
-                  Overall system resilience
-                </div>
-              </div>
-            </div>
-
-            {/* Analysis Results Placeholder */}
-            <div style={{
-              background: "rgba(255, 255, 255, 0.05)",
-              padding: "1.25rem",
-              borderRadius: "12px",
-              border: "1px solid rgba(255, 255, 255, 0.1)"
-            }}>
-              <h3 style={{ fontSize: "1rem", marginBottom: "1rem", fontWeight: 600 }}>
-                Analysis Results
-              </h3>
-              <div style={{ color: "#9ca3af", fontSize: "0.875rem", lineHeight: "1.6" }}>
-                <p style={{ margin: 0 }}>
-                  Your partner's contingency analysis algorithm output will appear here.
-                  This can include:
-                </p>
-                <ul style={{ marginTop: "0.75rem", marginBottom: 0, paddingLeft: "1.5rem" }}>
-                  <li>N-1 contingency scenarios</li>
-                  <li>Critical line outage impacts</li>
-                  <li>Load redistribution patterns</li>
-                  <li>Voltage stability indicators</li>
-                  <li>Recommended preventive actions</li>
-                </ul>
-              </div>
-            </div>
+          <div className="data-table-view" style={{ padding: 0 }}>
+            <OutageAnalysis onOutageComplete={setOutageResult} />
           </div>
         )}
       </aside>

@@ -8,6 +8,7 @@ resistance and diameter parameters would be needed.
 import pandas as pd
 import numpy as np
 import logging
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,12 @@ logger = logging.getLogger(__name__)
 class RatingCalculator:
     def __init__(self, data_loader):
         self.data_loader = data_loader
+        # IEEE738 engine will be imported lazily to avoid hard dependency issues
+        try:
+            from ieee738_integration import IEEE738RatingEngine
+            self._ieee_engine_cls = IEEE738RatingEngine
+        except Exception:
+            self._ieee_engine_cls = None
 
     def calculate_line_rating(self, line_data, weather_params):
         """
@@ -27,31 +34,50 @@ class RatingCalculator:
         Returns:
             Dictionary with rating information
         """
-        # Get conductor parameters
-        conductor_params = self.data_loader.get_conductor_params(line_data['conductor'])
-        if conductor_params is None:
-            logger.warning(f"Line {line_data['name']}: Conductor '{line_data['conductor']}' not found")
-            return None
+        # Try to compute dynamic rating using IEEE-738 engine (preferred)
+        rating_amps = None
+        rating_mva = None
 
-        # Get voltage
-        voltage_kv = self.data_loader.get_bus_voltage(line_data['bus0_name'])
-        if voltage_kv is None:
-            logger.warning(f"Line {line_data['name']}: Bus voltage for '{line_data['bus0_name']}' not found")
-            return None
-
-        # Get static rating based on voltage level
         try:
-            if voltage_kv == 138.0:
-                rating_mva = conductor_params['RatingMVA_138']
-                rating_amps = conductor_params['RatingAmps']
-            elif voltage_kv == 69.0:
-                rating_mva = conductor_params['RatingMVA_69']
-                rating_amps = conductor_params['RatingAmps']
-            else:
-                # Interpolate or use closest voltage
-                logger.warning(f"Line {line_data['name']}: Unusual voltage {voltage_kv} kV, using 138kV rating")
-                rating_mva = conductor_params['RatingMVA_138']
-                rating_amps = conductor_params['RatingAmps']
+            voltage_kv = self.data_loader.get_bus_voltage(line_data['bus0_name'])
+            if voltage_kv is None:
+                logger.warning(f"Line {line_data['name']}: Bus voltage for '{line_data['bus0_name']}' not found")
+                return None
+
+            # Try IEEE engine
+            try:
+                if self._ieee_engine_cls is not None:
+                    engine = self._ieee_engine_cls(loader=self.data_loader)
+                    ieee_result = engine.compute_line_rating(line_data)
+                    if ieee_result and ieee_result.get('rating_amps') is not None:
+                        rating_amps = float(ieee_result['rating_amps'])
+                        # Compute MVA at the line's nominal voltage
+                        rating_mva = (math.sqrt(3) * rating_amps * voltage_kv * 1000.0) / 1e6
+                    else:
+                        logger.debug(f"IEEE engine did not return rating for line {line_data['name']}: {ieee_result.get('error') if ieee_result else 'no result'}")
+            except Exception as e:
+                logger.warning(f"IEEE rating engine failed for line {line_data['name']}: {e}")
+                rating_amps = None
+                rating_mva = None
+
+            # If IEEE dynamic rating not available, fall back to static conductor ratings
+            if rating_amps is None:
+                conductor_params = self.data_loader.get_conductor_params(line_data['conductor'])
+                if conductor_params is None:
+                    logger.warning(f"Line {line_data['name']}: Conductor '{line_data['conductor']}' not found")
+                    return None
+
+                if voltage_kv == 138.0:
+                    rating_mva = conductor_params['RatingMVA_138']
+                    rating_amps = conductor_params['RatingAmps']
+                elif voltage_kv == 69.0:
+                    rating_mva = conductor_params['RatingMVA_69']
+                    rating_amps = conductor_params['RatingAmps']
+                else:
+                    # Interpolate or use closest voltage
+                    logger.warning(f"Line {line_data['name']}: Unusual voltage {voltage_kv} kV, using 138kV rating")
+                    rating_mva = conductor_params['RatingMVA_138']
+                    rating_amps = conductor_params['RatingAmps']
 
             # Get nominal flow (in MW, convert to MVA)
             flow_mw = self.data_loader.get_line_flow(line_data['name'])
@@ -73,24 +99,24 @@ class RatingCalculator:
 
             return {
                 'name': line_data['name'],
-                'branch_name': line_data['branch_name'],
+                'branch_name': line_data.get('branch_name'),
                 'conductor': line_data['conductor'],
-                'MOT': line_data['MOT'],
+                'MOT': line_data.get('MOT'),
                 'voltage_kv': voltage_kv,
-                'rating_amps': round(rating_amps, 2),
-                'rating_mva': round(rating_mva, 2),
-                'static_rating_mva': line_data['s_nom'],
+                'rating_amps': round(rating_amps, 2) if rating_amps is not None else None,
+                'rating_mva': round(rating_mva, 2) if rating_mva is not None else None,
+                'static_rating_mva': line_data.get('s_nom'),
                 'flow_mva': round(flow_mva, 2),
                 'loading_pct': round(loading_pct, 2),
-                'margin_mva': round(rating_mva - flow_mva, 2),
+                'margin_mva': round(rating_mva - flow_mva, 2) if rating_mva is not None else None,
                 'stress_level': stress_level,
-                'bus0': line_data['bus0_name'],
-                'bus1': line_data['bus1_name']
+                'bus0': line_data.get('bus0_name'),
+                'bus1': line_data.get('bus1_name')
             }
 
         except Exception as e:
             import traceback
-            logger.error(f"Error calculating rating for {line_data['name']}: {str(e)}")
+            logger.error(f"Error calculating rating for {line_data.get('name')}: {str(e)}")
             logger.debug(f"Traceback: {traceback.format_exc()}")
             return None
 
@@ -204,30 +230,46 @@ class RatingCalculator:
             'progression': results
         }
 
-    def analyze_contingency(self, outage_line, weather_params):
+    def analyze_contingency(self, outage_lines, weather_params=None):
         """
-        Analyze N-1 contingency by removing a line
+        Analyze N-1, N-2, or N-k contingency by removing one or more lines
 
-        NOTE: This is a simplified version. Full implementation would require
-        running a power flow solver (PyPSA) to redistribute flows.
+        Args:
+            outage_lines: Single line name (str) or list of line names to remove
+            weather_params: Weather parameters (currently not used as flows are static)
 
-        For now, we'll return the current state with the line marked as out of service.
+        Returns:
+            dict: Comprehensive contingency analysis results
         """
         try:
-            # Import PyPSA for power flow analysis
-            import pypsa
+            # Import the outage simulator
+            from outage_simulator import OutageSimulator
 
-            # Load PyPSA network (would need to be implemented)
-            # This is a placeholder for the actual implementation
+            # Convert single line to list
+            if isinstance(outage_lines, str):
+                outage_lines = [outage_lines]
 
+            # Initialize simulator (will load network if not already loaded)
+            simulator = OutageSimulator()
+
+            # Run the outage simulation
+            result = simulator.simulate_outage(outage_lines)
+
+            return result
+
+        except ImportError as e:
+            logger.error(f"PyPSA not available: {e}")
             return {
-                'outage_line': outage_line,
-                'message': 'Full contingency analysis requires PyPSA integration',
-                'status': 'not_implemented'
+                'success': False,
+                'error': 'PyPSA not installed. Install with: pip install pypsa',
+                'outage_lines': outage_lines
             }
-
-        except ImportError:
+        except Exception as e:
+            logger.error(f"Contingency analysis failed: {e}")
+            import traceback
             return {
-                'error': 'PyPSA not available for contingency analysis',
-                'outage_line': outage_line
+                'success': False,
+                'error': str(e),
+                'trace': traceback.format_exc(),
+                'outage_lines': outage_lines
             }

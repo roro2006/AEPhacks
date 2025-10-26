@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from "react";
-import { fetchMapHTML, type WeatherParams } from "../services/api";
+import { fetchMapHTML, fetchOutageMapHTML, type WeatherParams, type OutageSimulationResult } from "../services/api";
 import { Loader2, AlertCircle } from "lucide-react";
 import "./NetworkMap.css";
 
 interface NetworkMapProps {
   weather: WeatherParams;
+  outageResult?: OutageSimulationResult | null;
 }
 
-const NetworkMap: React.FC<NetworkMapProps> = ({ weather }) => {
+const NetworkMap: React.FC<NetworkMapProps> = ({ weather, outageResult }) => {
   const [mapHTML, setMapHTML] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -15,15 +16,21 @@ const NetworkMap: React.FC<NetworkMapProps> = ({ weather }) => {
 
   useEffect(() => {
     loadMap();
-  }, [weather]);
+  }, [weather, outageResult]);
 
   const loadMap = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const data = await fetchMapHTML(weather);
-      setMapHTML(data.map_html);
+      // If outage result exists, load outage map; otherwise load normal map
+      if (outageResult && outageResult.success) {
+        const data = await fetchOutageMapHTML(outageResult);
+        setMapHTML(data.map_html);
+      } else {
+        const data = await fetchMapHTML(weather);
+        setMapHTML(data.map_html);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load map");
     } finally {

@@ -1,6 +1,47 @@
 """
 Flask API server for Grid Real-Time Rating Analysis System
 """
+
+def load_required_data():
+    """
+    Load required data files and verify they are accessible
+    Returns True if successful, False if data loading failed
+    """
+    try:
+        # Verify GeoJSON files are loaded
+        if not data_loader.lines_geojson:
+            logger.info("Loading line GeoJSON data...")
+            data_loader.reload_data()
+            if not data_loader.lines_geojson:
+                logger.error("Failed to load line GeoJSON data")
+                return False
+        else:
+            logger.debug("Line GeoJSON data already loaded")
+
+        if not data_loader.buses_geojson:
+            logger.info("Loading bus GeoJSON data...")
+            data_loader.reload_data()
+            if not data_loader.buses_geojson:
+                logger.error("Failed to load bus GeoJSON data")
+                return False
+        else:
+            logger.debug("Bus GeoJSON data already loaded")
+
+        # Verify map generator has data
+        if not map_generator.lines_geojson:
+            logger.info("Reloading map generator data...")
+            map_generator.lines_geojson = data_loader.get_lines_geojson()
+            if not map_generator.lines_geojson:
+                logger.error("Failed to load map generator GeoJSON data")
+                return False
+        else:
+            logger.debug("Map generator data already loaded")
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Error loading required data: {str(e)}")
+        return False
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import pandas as pd
@@ -29,17 +70,29 @@ class NanSafeJSONEncoder(json.JSONEncoder):
 def clean_nan_values(obj):
     """
     Recursively replace NaN values with None in nested dictionaries/lists
+    Also converts numpy types to native Python types for JSON serialization
 
     Args:
         obj: Object to clean (dict, list, or primitive)
 
     Returns:
-        Cleaned object with NaN replaced by None
+        Cleaned object with NaN replaced by None and numpy types converted
     """
     if isinstance(obj, dict):
         return {k: clean_nan_values(v) for k, v in obj.items()}
     elif isinstance(obj, list):
         return [clean_nan_values(item) for item in obj]
+    elif isinstance(obj, np.bool_):
+        # Convert numpy boolean to Python boolean
+        return bool(obj)
+    elif isinstance(obj, (np.integer, np.int64, np.int32)):
+        # Convert numpy integers to Python int
+        return int(obj)
+    elif isinstance(obj, (np.floating, np.float64, np.float32)):
+        # Convert numpy floats to Python float, handling NaN/inf
+        if pd.isna(obj) or np.isnan(obj) or np.isinf(obj):
+            return None
+        return float(obj)
     elif isinstance(obj, float):
         if pd.isna(obj) or np.isnan(obj) or np.isinf(obj):
             return None
@@ -158,39 +211,106 @@ def find_threshold():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/contingency/n1', methods=['POST'])
-def analyze_contingency():
+@app.route('/api/outage/available-lines', methods=['GET'])
+def get_available_lines():
     """
-    Perform N-1 contingency analysis
+    Get list of all transmission lines available for outage simulation
+
+    Returns:
+        JSON with list of lines and their properties
+    """
+    try:
+        from outage_simulator import OutageSimulator
+
+        simulator = OutageSimulator()
+        lines = simulator.get_available_lines()
+
+        return jsonify({
+            'success': True,
+            'lines': lines,
+            'total_count': len(lines)
+        })
+
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+
+@app.route('/api/outage/simulate', methods=['POST'])
+def simulate_outage():
+    """
+    Simulate transmission line outage(s) and analyze impacts
 
     Expected JSON body:
     {
-        "outage_line": "L0",           # Line to remove
-        "ambient_temp": 25,
-        "wind_speed": 2.0
+        "outage_lines": ["L48", "L49"],  # List of line names to remove (or single string)
+        "use_lpf": false                  # Optional: use linear power flow (faster but less accurate)
+    }
+
+    Returns:
+        Comprehensive analysis including:
+        - Overloaded lines
+        - High stress lines
+        - Islanded buses
+        - Loading changes for all lines
+        - Summary metrics
+    """
+    try:
+        params = request.json
+        outage_lines = params.get('outage_lines', [])
+        use_lpf = params.get('use_lpf', False)
+
+        # Convert single line to list
+        if isinstance(outage_lines, str):
+            outage_lines = [outage_lines]
+
+        if not outage_lines:
+            return jsonify({
+                "success": False,
+                "error": "No outage lines specified"
+            }), 400
+
+        # Run contingency analysis
+        result = calculator.analyze_contingency(outage_lines)
+
+        # Clean NaN values
+        result_clean = clean_nan_values(result)
+
+        return jsonify(result_clean)
+
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+
+@app.route('/api/contingency/n1', methods=['POST'])
+def analyze_contingency():
+    """
+    Legacy endpoint - Perform N-1 contingency analysis
+
+    Expected JSON body:
+    {
+        "outage_line": "L0",           # Line to remove (or list of lines)
+        "ambient_temp": 25,            # Currently not used (static flows)
+        "wind_speed": 2.0              # Currently not used (static flows)
     }
     """
     try:
         params = request.json
         outage_line = params.get('outage_line')
 
-        weather_params = {
-            'Ta': params.get('ambient_temp', 25),
-            'WindVelocity': params.get('wind_speed', 2.0),
-            'WindAngleDeg': 90,
-            'SunTime': 12,
-            'Date': '12 Jun',
-            'Emissivity': 0.8,
-            'Absorptivity': 0.8,
-            'Direction': 'EastWest',
-            'Atmosphere': 'Clear',
-            'Elevation': 1000,
-            'Latitude': 27
-        }
+        if not outage_line:
+            return jsonify({
+                "success": False,
+                "error": "No outage line specified"
+            }), 400
 
-        result = calculator.analyze_contingency(outage_line, weather_params)
+        result = calculator.analyze_contingency(outage_line)
 
-        return jsonify(result)
+        # Clean NaN values
+        result_clean = clean_nan_values(result)
+
+        return jsonify(result_clean)
 
     except Exception as e:
         import traceback
@@ -427,6 +547,70 @@ def get_line_map_details(line_id):
     except Exception as e:
         import traceback
         return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+@app.route('/api/map/outage', methods=['POST'])
+def generate_outage_map():
+    """
+    Generate interactive map with outage simulation visualization
+
+    Expected JSON body:
+    {
+        "outage_result": {
+            "outage_lines": ["L48", "L49"],
+            "loading_changes": [...],
+            "overloaded_lines": [...],
+            ...
+        }
+    }
+    """
+    logger.info("Processing outage map request...")
+
+    try:
+        # Pre-flight check to ensure data is loaded
+        if not load_required_data():
+            logger.error("Required data files are not accessible")
+            return jsonify({
+                "error": "Required map data is unavailable",
+                "details": "Could not load GeoJSON files"
+            }), 500
+
+        data = request.json
+        outage_result = data.get('outage_result')
+
+        if not outage_result:
+            logger.warning("No outage result provided in request")
+            return jsonify({"error": "No outage result provided"}), 400
+
+        try:
+            # Generate outage map visualization
+            map_html = map_generator.generate_outage_map(outage_result)
+
+            # Build response
+            response = {
+                "map_html": map_html,
+                "outage_lines": outage_result.get('outage_lines', []),
+                "metrics": clean_nan_values(outage_result.get('metrics', {}))
+            }
+
+            logger.info(f"Successfully generated outage map for {len(outage_result.get('outage_lines', []))} lines")
+            return jsonify(response)
+
+        except Exception as e:
+            logger.error(f"Failed to generate outage map: {str(e)}")
+            return jsonify({
+                "error": "Map generation failed",
+                "details": str(e)
+            }), 500
+
+    except Exception as e:
+        import traceback
+        trace = traceback.format_exc()
+        logger.error(f"Unexpected error in outage map endpoint: {str(e)}\n{trace}")
+        return jsonify({
+            "error": str(e),
+            "trace": trace,
+            "tip": "Server encountered an error processing the request"
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
